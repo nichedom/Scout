@@ -1,9 +1,9 @@
-import type { LocationData, PointOfInterest, TripPlan, TripLeg } from '../types';
+import type { LocationData, TripPlan, TripLeg } from '../types';
 
 interface TripPayload {
   location: { name: string; address: string; lat: number; lng: number };
-  selectedPois: string[];
-  mustSee: PointOfInterest[];
+  destination: { name: string; address: string; lat: number; lng: number };
+  mustSee: { name: string; description: string; type: string }[];
   travelMode: 'walking' | 'driving' | 'transit';
   legs: TripLeg[];
 }

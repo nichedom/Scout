@@ -5,22 +5,23 @@ import type { TripLeg, PointOfInterest } from '../types';
 const router = Router();
 
 router.post('/', async (req, res) => {
-  const { location, selectedPois, mustSee, travelMode, legs } = req.body as {
+  const { location, destination, mustSee, travelMode, legs } = req.body as {
     location: { name: string; address: string; lat: number; lng: number };
-    selectedPois: string[];
+    destination: { name: string; address: string; lat: number; lng: number };
     mustSee: PointOfInterest[];
     travelMode: 'walking' | 'driving' | 'transit';
     legs: TripLeg[];
   };
 
-  if (!location?.name || !selectedPois?.length) {
-    return res.status(400).json({ error: 'location and selectedPois are required' });
+  if (!location?.name || !destination?.name) {
+    return res.status(400).json({ error: 'location and destination are required' });
   }
 
   try {
     const tripPlan = await generateTripCosts({
       location: location.name,
-      selectedPois,
+      destination: destination.name,
+      selectedPois: [destination.name],
       mustSee: mustSee ?? [],
       travelMode: travelMode ?? 'walking',
       legs: legs ?? [],

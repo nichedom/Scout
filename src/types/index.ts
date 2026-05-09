@@ -63,4 +63,11 @@ export interface TripPlan {
   tips: string;
 }
 
+export interface TripDestination {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+}
+
 export type AppPhase = 'landing' | 'exploring';

@@ -11,28 +11,21 @@ function getTravelMode(mode: 'walking' | 'driving' | 'transit'): google.maps.Tra
 
 export async function getDirectionsLegs(
   origin: { lat: number; lng: number },
-  waypoints: string[],
-  travelMode: 'walking' | 'driving' | 'transit'
+  destination: { lat: number; lng: number },
+  travelMode: 'walking' | 'driving' | 'transit',
+  waypoints?: string[]
 ): Promise<TripLeg[]> {
   const directionsService = new google.maps.DirectionsService();
 
-  if (waypoints.length < 2) {
-    throw new Error('Need at least 2 stops to plan a route');
-  }
-
-  const originStr = `${origin.lat},${origin.lng}`;
-  const destination = waypoints[waypoints.length - 1];
-  const middleWaypoints = waypoints.slice(0, -1).slice(1).map((wp) => ({
-    location: wp,
-    stopover: true,
-  }));
-
   const request: google.maps.DirectionsRequest = {
-    origin: originStr,
-    destination,
-    waypoints: middleWaypoints.length > 0 ? middleWaypoints : undefined,
+    origin: { lat: origin.lat, lng: origin.lng },
+    destination: { lat: destination.lat, lng: destination.lng },
     travelMode: getTravelMode(travelMode),
-    optimizeWaypoints: true,
+    waypoints: waypoints?.map((wp) => ({
+      location: wp,
+      stopover: true,
+    })),
+    optimizeWaypoints: !!waypoints && waypoints.length > 1,
   };
 
   const result = await directionsService.route(request);
@@ -40,13 +33,11 @@ export async function getDirectionsLegs(
   const legs: TripLeg[] = [];
   const routeLegs = result.routes[0]?.legs ?? [];
 
-  const allStopNames = [waypoints[0], ...waypoints.slice(1)];
-
   for (let i = 0; i < routeLegs.length; i++) {
     const leg = routeLegs[i];
     legs.push({
-      from: allStopNames[i] ?? leg.start_address,
-      to: allStopNames[i + 1] ?? leg.end_address,
+      from: leg.start_address.split(',')[0],
+      to: leg.end_address.split(',')[0],
       distanceKm: Math.round(((leg.distance?.value ?? 0) / 1000) * 10) / 10,
       durationMin: Math.round((leg.duration?.value ?? 0) / 60),
       mode: travelMode,

@@ -1,11 +1,11 @@
 import { create } from 'zustand';
-import type { LocationData, TourContent, PipelineStep, AppPhase, TripPlan } from '../types';
+import type { LocationData, TourContent, PipelineStep, AppPhase, TripPlan, TripDestination } from '../types';
 
 const INITIAL_STEPS: PipelineStep[] = [
   { id: 'geocode', icon: '📍', label: 'Locating coordinates', status: 'idle' },
   { id: 'wikipedia', icon: '📖', label: 'Fetching Wikipedia data', status: 'idle' },
   { id: 'reddit', icon: '💬', label: 'Scanning community posts', status: 'idle' },
-  { id: 'gemini', icon: '🧠', label: 'Generating AI narrative', status: 'idle' },
+  { id: 'gemini', icon: '✨', label: 'Gemini 2.5 Flash — generating narrative', status: 'idle' },
 ];
 
 export type StreetViewFocus = { lat: number; lng: number };
@@ -22,7 +22,7 @@ interface TourStore {
 
   tripPlan: TripPlan | null;
   tripLoading: boolean;
-  selectedPois: string[];
+  tripDestination: TripDestination | null;
 
   setPhase: (phase: AppPhase) => void;
   setLocation: (loc: LocationData) => void;
@@ -34,8 +34,7 @@ interface TourStore {
   setStreetViewFocus: (focus: StreetViewFocus | null) => void;
   setTripPlan: (plan: TripPlan | null) => void;
   setTripLoading: (v: boolean) => void;
-  togglePoiSelection: (poiName: string) => void;
-  setSelectedPois: (names: string[]) => void;
+  setTripDestination: (dest: TripDestination | null) => void;
   reset: () => void;
 }
 
@@ -50,7 +49,7 @@ export const useTourStore = create<TourStore>((set) => ({
 
   tripPlan: null,
   tripLoading: false,
-  selectedPois: [],
+  tripDestination: null,
 
   setPhase: (phase) => set({ phase }),
   setLocation: (location) => set({ location }),
@@ -67,13 +66,7 @@ export const useTourStore = create<TourStore>((set) => ({
   setStreetViewFocus: (streetViewFocus) => set({ streetViewFocus }),
   setTripPlan: (tripPlan) => set({ tripPlan }),
   setTripLoading: (tripLoading) => set({ tripLoading }),
-  togglePoiSelection: (poiName) =>
-    set((s) => ({
-      selectedPois: s.selectedPois.includes(poiName)
-        ? s.selectedPois.filter((n) => n !== poiName)
-        : [...s.selectedPois, poiName],
-    })),
-  setSelectedPois: (selectedPois) => set({ selectedPois }),
+  setTripDestination: (tripDestination) => set({ tripDestination }),
   reset: () =>
     set({
       phase: 'landing',
@@ -85,6 +78,6 @@ export const useTourStore = create<TourStore>((set) => ({
       streetViewFocus: null,
       tripPlan: null,
       tripLoading: false,
-      selectedPois: [],
+      tripDestination: null,
     }),
 }));

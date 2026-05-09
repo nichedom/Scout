@@ -122,6 +122,7 @@ export async function generateTourContent(ctx: PlaceContext): Promise<GeminiResu
 
 interface TripCostContext {
   location: string;
+  destination: string;
   selectedPois: string[];
   mustSee: { name: string; description: string; type: string }[];
   travelMode: string;
@@ -132,18 +133,18 @@ function buildTripCostPrompt(ctx: TripCostContext): string {
   const poiList = ctx.mustSee
     .filter((p) => ctx.selectedPois.includes(p.name))
     .map((p) => `  - ${p.name} (${p.type}): ${p.description}`)
-    .join("\n");
+    .join("\n") || '  No specific POI data available.';
 
-  const legList = ctx.legs
-    .map((l) => `  ${l.from} → ${l.to}: ${l.distanceKm.toFixed(1)} km, ${l.durationMin} min by ${l.mode}`)
-    .join("\n");
+  const legList = ctx.legs.length > 0
+    ? ctx.legs.map((l) => `  ${l.from} → ${l.to}: ${l.distanceKm.toFixed(1)} km, ${l.durationMin} min by ${l.mode}`).join('\n')
+    : `  Direct trip to ${ctx.location}`;
 
-  return `You are a travel budget estimator. Given the following trip plan for ${ctx.location}, estimate realistic costs.
+  return `You are a travel budget estimator for a trip from ${ctx.location} to ${ctx.destination}.
 
-Selected stops:
+Available attractions near the destination:
 ${poiList}
 
-Route legs:
+Route details:
 ${legList}
 
 Travel mode: ${ctx.travelMode}
@@ -152,8 +153,8 @@ Return a JSON object with EXACTLY this structure:
 {
   "costs": [
     {
-      "stopName": "Name of the stop",
-      "entryCost": "~$X USD or Free",
+      "stopName": "Name of the stop or activity",
+      "entryCost": "~$X USD" or "Free",
       "mealBudget": "~$X–Y USD",
       "notes": "A practical note about this stop's cost"
     }
@@ -161,14 +162,15 @@ Return a JSON object with EXACTLY this structure:
   "totalBudgetMin": "~$X USD",
   "totalBudgetMax": "~$Y USD",
   "totalDurationMin": 0,
-  "tips": "2-3 practical budget tips for visiting these places"
+  "tips": "2-3 practical budget tips for visiting this destination"
 }
 
 Rules:
+- Include 3-5 relevant stops/activities at the destination, drawing from the POI data if available
 - Use local currency equivalent with USD in parentheses, e.g. "~€12 ($13 USD)" or just "~$15 USD" if USD is local
 - Prefix all estimates with "~" to indicate approximation
-- Include entry fees, average meal costs, and transport between stops
-- totalBudgetMin/Max should cover entry + meals + transport for the whole itinerary
+- Include entry fees, average meal costs, and transport
+- totalBudgetMin/Max should cover entry + meals + transport for the whole trip
 - totalDurationMin should be the sum of all leg durations plus a reasonable visit time per stop (assume ~1 hour per stop)`;
 }
 
