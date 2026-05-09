@@ -220,10 +220,7 @@ export default function SearchBar({ onSelect, compact = false }: Props) {
   }
 
   return (
-    <div
-      className={`relative transition-all duration-300 ${focused ? 'scale-[1.01]' : ''}`}
-      style={{ zIndex: 1 }}
-    >
+    <div className="relative transition-[border-color] duration-300" style={{ zIndex: 1 }}>
       <div className="relative w-full">
         <div
           ref={containerRef}
@@ -233,7 +230,8 @@ export default function SearchBar({ onSelect, compact = false }: Props) {
           `}
           style={{
             borderColor: focused ? 'var(--amber)' : 'var(--border)',
-            boxShadow: focused ? 'var(--glow-amber)' : 'none',
+            boxShadow: 'none',
+            outline: 'none',
           }}
         />
         {!widgetReady && (
@@ -245,8 +243,8 @@ export default function SearchBar({ onSelect, compact = false }: Props) {
       </div>
 
       {!compact && widgetReady && (
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-          <kbd className="text-[10px] text-white/20 font-mono border border-white/10 rounded px-1.5 py-0.5">
+        <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center pr-px">
+          <kbd className="inline-flex items-center rounded-md px-2.5 py-1 text-[10px] font-mono text-white/30 tabular-nums ring-1 ring-inset ring-white/12 bg-white/[0.04]">
             Enter
           </kbd>
         </div>
