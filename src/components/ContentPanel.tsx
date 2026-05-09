@@ -21,7 +21,7 @@ export default function ContentPanel({ onBack }: Props) {
     <div
       className="h-full min-h-0 flex flex-col rounded-2xl overflow-hidden shadow-2xl backdrop-blur-xl"
       style={{
-        background: 'color-mix(in srgb, var(--bg-surface) 92%, transparent)',
+        background: 'color-mix(in srgb, var(--bg-surface) 78%, transparent)',
         border: '1px solid var(--border)',
       }}
     >

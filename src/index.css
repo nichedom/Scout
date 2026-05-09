@@ -41,10 +41,19 @@ html, body, #root {
   border-radius: 4px;
 }
 
-/* Glass card */
+/* Glass card — translucent black with blur (floating panels) */
 .glass {
-  background: rgba(20, 20, 20, 0.9);
+  background: rgba(0, 0, 0, 0.55);
   border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Places UI kit: one surface with our `.glass` wrapper, not a second opaque card */
+gmp-place-autocomplete {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .glass-hover:hover {

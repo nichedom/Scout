@@ -185,7 +185,13 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <div className="flex items-center gap-2 rounded-full px-4 py-2 pointer-events-auto" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+            <div
+              className="flex items-center gap-2 rounded-full px-4 py-2 pointer-events-auto backdrop-blur-md"
+              style={{
+                background: 'color-mix(in srgb, var(--bg-card) 72%, transparent)',
+                border: '1px solid var(--border)',
+              }}
+            >
               <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
               <span className="text-xs text-white/50 font-mono">Researching…</span>
             </div>

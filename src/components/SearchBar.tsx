@@ -107,6 +107,10 @@ export default function SearchBar({ onSelect, compact = false }: Props) {
         pac.style.borderRadius = '12px';
         pac.style.position = 'relative';
         pac.style.zIndex = '50';
+        // Host is transparent so our outer `.glass` frame is the only chrome (avoids nested boxes + double icon with our SVG).
+        pac.style.backgroundColor = 'transparent';
+        pac.style.border = 'none';
+        pac.style.boxShadow = 'none';
 
         const onSelectPlace = async (event: Event) => {
           const place = placeFromAutocompleteEvent(event);
@@ -213,26 +217,12 @@ export default function SearchBar({ onSelect, compact = false }: Props) {
       className={`relative transition-all duration-300 ${focused ? 'scale-[1.01]' : ''}`}
       style={{ zIndex: 1 }}
     >
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none z-10">
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke={focused ? 'var(--amber)' : 'rgba(107,143,168,0.7)'}
-          viewBox="0 0 24 24"
-          strokeWidth={2}
-        >
-          <circle cx="11" cy="11" r="8" />
-          <path d="m21 21-4.35-4.35" />
-        </svg>
-      </div>
-
       <div className="relative w-full">
         <div
           ref={containerRef}
           className={`
             w-full glass rounded-xl overflow-visible
             ${compact ? 'min-h-[40px]' : 'min-h-[56px]'}
-            ${widgetReady ? 'pl-10' : ''}
           `}
           style={{
             borderColor: focused ? 'var(--amber)' : 'var(--border)',
