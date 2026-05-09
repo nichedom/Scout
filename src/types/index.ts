@@ -5,6 +5,15 @@ export interface LocationData {
   lng: number;
   placeId?: string;
   types?: string[];
+  photos?: PlacePhotoData[];
+}
+
+export interface PlacePhotoData {
+  url: string;
+  width?: number;
+  height?: number;
+  attribution?: string;
+  attributionHtml?: string;
 }
 
 export type PipelineStatus = 'idle' | 'running' | 'done' | 'error';

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GoogleMap, DirectionsRenderer } from '@react-google-maps/api';
 import { useTourStore } from '../store/useTourStore';
@@ -153,10 +153,21 @@ function DestinationSearch({ onSelect }: { onSelect: (dest: TripDestination) => 
 function TripMapView({ location, destination, travelMode }: { location: { lat: number; lng: number }; destination: { lat: number; lng: number }; travelMode: TravelMode }) {
   const { isLoaded, loadError, apiKeyMissing } = useGoogleMaps();
   const [directions, setDirections] = useState<google.maps.DirectionsResult | null>(null);
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
+
+  const fitOriginDestination = useCallback((map: google.maps.Map) => {
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend(location);
+    bounds.extend(destination);
+    map.fitBounds(bounds);
+  }, [destination, location]);
 
   useEffect(() => {
     if (!isLoaded) return;
 
+    setDirections(null);
+    setRouteError(null);
     const directionsService = new google.maps.DirectionsService();
     const gTravelMode = travelMode === 'walking'
       ? google.maps.TravelMode.WALKING
@@ -173,10 +184,29 @@ function TripMapView({ location, destination, travelMode }: { location: { lat: n
       (result, status) => {
         if (status === google.maps.DirectionsStatus.OK && result) {
           setDirections(result);
+          setRouteError(null);
+          const bounds = result.routes[0]?.bounds;
+          if (bounds && mapRef.current) {
+            mapRef.current.fitBounds(bounds);
+          }
+        } else {
+          setRouteError(`Route unavailable (${status})`);
+          if (mapRef.current) {
+            fitOriginDestination(mapRef.current);
+          }
         }
       }
     );
-  }, [isLoaded, location.lat, location.lng, destination.lat, destination.lng, travelMode]);
+  }, [isLoaded, location.lat, location.lng, destination.lat, destination.lng, travelMode, fitOriginDestination]);
+
+  const handleMapLoad = useCallback((map: google.maps.Map) => {
+    mapRef.current = map;
+    if (directions?.routes[0]?.bounds) {
+      map.fitBounds(directions.routes[0].bounds);
+    } else {
+      fitOriginDestination(map);
+    }
+  }, [directions, fitOriginDestination]);
 
   if (apiKeyMissing || loadError) {
     return <div className="h-full flex items-center justify-center" style={{ background: 'var(--bg-card)' }}><p className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>Map unavailable</p></div>;
@@ -191,19 +221,32 @@ function TripMapView({ location, destination, travelMode }: { location: { lat: n
   };
 
   return (
-    <GoogleMap
-      mapContainerStyle={{ width: '100%', height: '100%' }}
-      center={center}
-      zoom={12}
-      options={{ disableDefaultUI: true, zoomControl: false, styles: DARK_MAP_STYLES, backgroundColor: '#0a0a0a' }}
-    >
-      {directions && (
-        <DirectionsRenderer
-          directions={directions}
-          options={{ suppressMarkers: false, polylineOptions: { strokeColor: '#e8a849', strokeWeight: 3 } }}
-        />
+    <div className="relative h-full">
+      <GoogleMap
+        mapContainerStyle={{ width: '100%', height: '100%' }}
+        center={center}
+        zoom={12}
+        onLoad={handleMapLoad}
+        onUnmount={() => {
+          mapRef.current = null;
+        }}
+        options={{ disableDefaultUI: true, zoomControl: false, styles: DARK_MAP_STYLES, backgroundColor: '#0a0a0a' }}
+      >
+        {directions && (
+          <DirectionsRenderer
+            directions={directions}
+            options={{ suppressMarkers: false, polylineOptions: { strokeColor: '#e8a849', strokeWeight: 3 } }}
+          />
+        )}
+      </GoogleMap>
+      {!directions && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-black/35 px-4">
+          <p className="text-xs font-mono text-white/45 text-center">
+            {routeError ?? 'Calculating route...'}
+          </p>
+        </div>
       )}
-    </GoogleMap>
+    </div>
   );
 }
 

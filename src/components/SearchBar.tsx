@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useGoogleMaps } from '../context/GoogleMapsProvider';
+import { photosFromNewPlace } from '../services/placePhotos';
 import type { LocationData } from '../types';
 
 const FETCH_PLACE_FIELDS = [
@@ -8,6 +9,7 @@ const FETCH_PLACE_FIELDS = [
   'viewport',
   'displayName',
   'formattedAddress',
+  'photos',
   'types',
 ] as const;
 
@@ -150,6 +152,7 @@ export default function SearchBar({ onSelect, compact = false }: Props) {
             lng: coords.lng,
             placeId: place.id,
             types: place.types,
+            photos: photosFromNewPlace(place.photos),
           });
         };
 

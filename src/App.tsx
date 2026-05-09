@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import ContentPanel from './components/ContentPanel';
 import FullscreenStreetView from './components/FullscreenStreetView';
 import Globe3D from './components/Globe3D';
+import LandmarkPhotos from './components/LandmarkPhotos';
 import SearchBar from './components/SearchBar';
 import { useTourStore } from './store/useTourStore';
 import { generateTour } from './services/api';
@@ -236,6 +237,10 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {phase === 'exploring' && location && (
+        <LandmarkPhotos location={location} />
+      )}
     </div>
   );
 }
