@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import type { TourContent } from "../types";
+import type { TourContent, TripCostBreakdown, TripPlan, TripLeg } from "../types";
 
 let geminiModelSingleton: ReturnType<GoogleGenerativeAI["getGenerativeModel"]> | null = null;
 
@@ -117,5 +117,89 @@ export async function generateTourContent(ctx: PlaceContext): Promise<GeminiResu
   return {
     tour: parsed,
     tokens: usage?.totalTokenCount ?? 0,
+  };
+}
+
+interface TripCostContext {
+  location: string;
+  selectedPois: string[];
+  mustSee: { name: string; description: string; type: string }[];
+  travelMode: string;
+  legs: TripLeg[];
+}
+
+function buildTripCostPrompt(ctx: TripCostContext): string {
+  const poiList = ctx.mustSee
+    .filter((p) => ctx.selectedPois.includes(p.name))
+    .map((p) => `  - ${p.name} (${p.type}): ${p.description}`)
+    .join("\n");
+
+  const legList = ctx.legs
+    .map((l) => `  ${l.from} → ${l.to}: ${l.distanceKm.toFixed(1)} km, ${l.durationMin} min by ${l.mode}`)
+    .join("\n");
+
+  return `You are a travel budget estimator. Given the following trip plan for ${ctx.location}, estimate realistic costs.
+
+Selected stops:
+${poiList}
+
+Route legs:
+${legList}
+
+Travel mode: ${ctx.travelMode}
+
+Return a JSON object with EXACTLY this structure:
+{
+  "costs": [
+    {
+      "stopName": "Name of the stop",
+      "entryCost": "~$X USD or Free",
+      "mealBudget": "~$X–Y USD",
+      "notes": "A practical note about this stop's cost"
+    }
+  ],
+  "totalBudgetMin": "~$X USD",
+  "totalBudgetMax": "~$Y USD",
+  "totalDurationMin": 0,
+  "tips": "2-3 practical budget tips for visiting these places"
+}
+
+Rules:
+- Use local currency equivalent with USD in parentheses, e.g. "~€12 ($13 USD)" or just "~$15 USD" if USD is local
+- Prefix all estimates with "~" to indicate approximation
+- Include entry fees, average meal costs, and transport between stops
+- totalBudgetMin/Max should cover entry + meals + transport for the whole itinerary
+- totalDurationMin should be the sum of all leg durations plus a reasonable visit time per stop (assume ~1 hour per stop)`;
+}
+
+export async function generateTripCosts(ctx: TripCostContext): Promise<TripPlan> {
+  const model = getGeminiModel();
+  const prompt = buildTripCostPrompt(ctx);
+
+  const result = await model.generateContent(prompt);
+  const response = result.response;
+  const text = response.text();
+
+  let parsed: {
+    costs: TripCostBreakdown[];
+    totalBudgetMin: string;
+    totalBudgetMax: string;
+    totalDurationMin: number;
+    tips: string;
+  };
+
+  try {
+    parsed = JSON.parse(extractJson(text)) as typeof parsed;
+  } catch (err) {
+    throw new Error(`Failed to parse Gemini trip cost response as JSON: ${(err as Error).message}`);
+  }
+
+  return {
+    legs: ctx.legs,
+    costs: parsed.costs,
+    totalBudgetMin: parsed.totalBudgetMin,
+    totalBudgetMax: parsed.totalBudgetMax,
+    totalDurationMin: parsed.totalDurationMin,
+    tips: parsed.tips,
   };
 }
