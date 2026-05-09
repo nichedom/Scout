@@ -1,10 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { generateNarration } from '../services/api';
-import type { TourContent } from '../types';
+import type { PointOfInterest, TourContent } from '../types';
+
+export interface AudioPlayerHandle {
+  speakStop: (poi: PointOfInterest) => Promise<void>;
+}
 
 interface Props {
   tourContent: TourContent;
   placeName?: string;
+  autoPlay?: boolean;
 }
 
 function buildNarrationScript(tour: TourContent, placeName?: string): string {
@@ -31,6 +36,19 @@ function buildNarrationScript(tour: TourContent, placeName?: string): string {
     .trim();
 }
 
+function buildStopScript(poi: PointOfInterest, placeName?: string): string {
+  return [
+    `Now let's focus on ${poi.name}.`,
+    placeName ? `This is one of the key stops around ${placeName}.` : '',
+    poi.description,
+    'Take a moment to look around before we continue.',
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function formatTime(value: number) {
   if (!Number.isFinite(value)) return '0:00';
   const minutes = Math.floor(value / 60);
@@ -38,8 +56,12 @@ function formatTime(value: number) {
   return `${minutes}:${seconds}`;
 }
 
-export default function AudioPlayer({ tourContent, placeName }: Props) {
+const AudioPlayer = forwardRef<AudioPlayerHandle, Props>(function AudioPlayer(
+  { tourContent, placeName, autoPlay = false },
+  ref,
+) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const lastAutoPlayScriptRef = useRef<string>('');
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -63,19 +85,30 @@ export default function AudioPlayer({ tourContent, placeName }: Props) {
     setError(null);
   }, [script]);
 
-  const createAudio = async () => {
+  const loadAndPlay = async (text: string) => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+
     setIsGenerating(true);
     setError(null);
+    setCurrentTime(0);
+    setDuration(0);
 
     try {
-      const blob = await generateNarration(script);
+      const blob = await generateNarration(text);
       const url = URL.createObjectURL(blob);
       setAudioUrl((previousUrl) => {
         if (previousUrl) URL.revokeObjectURL(previousUrl);
         return url;
       });
+
       window.setTimeout(() => {
-        void audioRef.current?.play();
+        void audioRef.current?.play().catch(() => {
+          setError('Audio is ready. Press play to start narration.');
+        });
       }, 0);
     } catch (err) {
       setError((err as Error).message);
@@ -84,10 +117,20 @@ export default function AudioPlayer({ tourContent, placeName }: Props) {
     }
   };
 
+  useEffect(() => {
+    if (!autoPlay || !script || lastAutoPlayScriptRef.current === script) return;
+    lastAutoPlayScriptRef.current = script;
+    void loadAndPlay(script);
+  }, [autoPlay, script]);
+
+  useImperativeHandle(ref, () => ({
+    speakStop: (poi: PointOfInterest) => loadAndPlay(buildStopScript(poi, placeName)),
+  }), [placeName]);
+
   const togglePlayback = async () => {
     const audio = audioRef.current;
     if (!audioUrl || !audio) {
-      await createAudio();
+      await loadAndPlay(script);
       return;
     }
 
@@ -165,4 +208,6 @@ export default function AudioPlayer({ tourContent, placeName }: Props) {
       />
     </div>
   );
-}
+});
+
+export default AudioPlayer;
