@@ -123,9 +123,17 @@ export default function App() {
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="w-6 h-6 rounded-full bg-white/10" />
-          <span className="text-sm font-medium tracking-wide text-white/70 select-none">
+        <div className="inline-flex h-10 items-center gap-2.5 shrink-0">
+          <img
+            src="/logo-scout.png"
+            alt=""
+            width={40}
+            height={40}
+            draggable={false}
+            className="block h-10 w-10 rounded-full object-contain object-center shrink-0 select-none"
+            aria-hidden
+          />
+          <span className="inline-flex h-10 items-center text-sm font-medium tracking-wide leading-none text-white/70 select-none">
             Scout
           </span>
         </div>
@@ -139,40 +147,52 @@ export default function App() {
       <AnimatePresence>
         {phase === 'landing' && (
           <motion.div
-            className="absolute inset-0 z-10 flex flex-col items-center justify-center pointer-events-none"
+            key="landing-screen"
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-14 px-6 pointer-events-none"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1, transition: { delay: 0.8 } }}
             exit={{ opacity: 0, transition: { duration: 0.3 } }}
           >
-            <h1 className="text-5xl font-light text-white/90 mb-4 text-center leading-tight">
-              Every place<br />
-              <span className="visit-text font-normal">has a story.</span>
-            </h1>
-            <p className="text-white/30 text-sm tracking-widest uppercase mt-2">
-              Drop a pin · Hear the story
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence mode="wait">
-        {phase === 'landing' && (
-          <motion.div
-            key="search-landing"
-            className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 w-full max-w-2xl px-6 flex flex-col items-center gap-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0, transition: { delay: 1 } }}
-            exit={{ opacity: 0, y: -10, transition: { duration: 0.25 } }}
-          >
-            <SearchBar onSelect={handleLocationSelect} />
-            <button
-              type="button"
-              onClick={() => handleLocationSelect(DEMO_LOCATION_TOKYO_SHIBUYA)}
-              className="glass rounded-xl px-5 py-2.5 text-xs font-mono text-white/55 hover:text-amber-400/95 hover:border-amber-400/25 transition-colors"
-              style={{ borderColor: 'var(--border)' }}
+            <div className="flex flex-col items-center -translate-y-10 sm:-translate-y-14">
+              <div className="flex flex-col items-center gap-0">
+                <img
+                  src="/logo-scout.png"
+                  alt=""
+                  width={176}
+                  height={176}
+                  draggable={false}
+                  className="h-36 w-36 sm:h-44 sm:w-44 object-contain select-none pointer-events-none"
+                  aria-hidden
+                />
+                <p
+                  className="-mt-2 sm:-mt-2.5 font-display text-6xl sm:text-7xl font-light tracking-tight text-white/95 text-center pointer-events-none"
+                  aria-hidden
+                >
+                  Scout
+                </p>
+              </div>
+              <h1 className="text-5xl font-light text-white/90 mt-11 sm:mt-14 mb-0 text-center leading-tight">
+                Every place<br />
+                <span className="visit-text font-normal">has a story.</span>
+              </h1>
+              <p className="text-white/30 text-sm tracking-widest uppercase mt-1.5 text-center">
+                Search a place · Hear the story
+              </p>
+            </div>
+            <motion.div
+              className="w-full max-w-2xl pointer-events-auto"
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0, transition: { delay: 1 } }}
             >
-              Skip search · try static Tokyo (Shibuya)
-            </button>
+              <SearchBar onSelect={handleLocationSelect} />
+              <button
+                type="button"
+                onClick={() => handleLocationSelect(DEMO_LOCATION_TOKYO_SHIBUYA)}
+                className="sr-only"
+              >
+                Skip search · try static Tokyo (Shibuya)
+              </button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
