@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useTourStore } from '../store/useTourStore';
+import AudioPlayer from './AudioPlayer';
 
 const stagger = {
   container: { animate: { transition: { staggerChildren: 0.07 } } },
@@ -72,6 +73,8 @@ export default function TourPanel() {
           initial="initial"
           animate="animate"
         >
+          <AudioPlayer tourContent={tourContent} placeName={location?.name} />
+
           {/* Welcome */}
           <motion.div variants={stagger.item} className="mb-7">
             <blockquote

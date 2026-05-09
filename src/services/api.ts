@@ -46,3 +46,27 @@ export async function generateTour(
 
   return data.tour as TourContent;
 }
+
+export async function generateNarration(text: string): Promise<Blob> {
+  const res = await fetch('/api/narration/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+
+  if (!res.ok) {
+    const responseText = await res.text();
+    let message = responseText || `HTTP ${res.status}`;
+
+    try {
+      const body = JSON.parse(responseText) as { error?: string };
+      message = body.error || message;
+    } catch {
+      // Keep the raw response text when the backend did not return JSON.
+    }
+
+    throw new Error(message);
+  }
+
+  return res.blob();
+}

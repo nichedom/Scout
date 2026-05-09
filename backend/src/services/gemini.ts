@@ -9,22 +9,24 @@ function getGeminiModel(): ReturnType<GoogleGenerativeAI["getGenerativeModel"]> 
   const key = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, "");
   if (!key) {
     throw new Error(
-      "GEMINI_API_KEY is missing in backend/.env — tours need a Gemini API key."
+      "GEMINI_API_KEY is missing in backend/.env - tours need a Gemini API key."
     );
   }
 
+  const modelName = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
   const genAI = new GoogleGenerativeAI(key);
+
   geminiModelSingleton = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: modelName,
     generationConfig: {
-      responseMimeType: "application/json",
-      temperature: 0.85,
-      maxOutputTokens: 4096,
+      temperature: 0.72,
+      maxOutputTokens: 1800,
     },
-    systemInstruction: `You are an expert travel guide, historian, and cultural analyst with the voice of a passionate storyteller.
-Your goal is to craft vivid, engaging, and educational narratives about places — mixing history, culture, local insights, and atmosphere.
-Adapt your tone: solemn for historic sites, animated for lively districts, poetic for natural landscapes.
-Always respond with valid JSON matching the exact schema provided. No markdown, no explanation — only the JSON object.`,
+    systemInstruction: `You are a warm, charismatic virtual tour guide writing for audio narration.
+Write like a real guide walking with the listener through the place.
+Use short, natural spoken sentences. Keep it cinematic, clear, and easy to read aloud.
+Avoid academic phrasing, dense lists, markdown, headings, bullet points, and JSON.
+Return plain text only.`,
   });
 
   return geminiModelSingleton;
@@ -48,77 +50,123 @@ interface GeminiResult {
 function buildPrompt(ctx: PlaceContext): string {
   const typeHint = ctx.types?.join(", ") || "unknown type";
   const wikiSection = ctx.wikiExtract
-    ? `\n\nWikipedia context:\n"${ctx.wikiExtract}"`
+    ? `\n\nUse this background for accuracy, but do not summarize it like an article:\n${ctx.wikiExtract}`
     : "";
 
-  return `You are creating a virtual tour guide narration for the following location:
+  return `Create a spoken virtual walking tour for this location:
 
 Name: ${ctx.name}
 Address: ${ctx.address}
 Coordinates: ${ctx.lat.toFixed(4)}, ${ctx.lng.toFixed(4)}
 Type: ${typeHint}${wikiSection}
 
-Return a JSON object with EXACTLY this structure:
-{
-  "welcome": "A vivid, evocative 2-3 sentence welcome that captures the spirit and atmosphere of this place. Should feel like the opening line of a great travel documentary.",
-  "history": "3-4 paragraphs about the history, significance, and evolution of this place. Be specific, not generic. Include key dates, people, or events if known.",
-  "curiosities": [
-    "Fascinating fact 1 that most visitors don't know",
-    "Fascinating fact 2",
-    "Fascinating fact 3",
-    "Fascinating fact 4",
-    "Fascinating fact 5"
-  ],
-  "mustSee": [
-    {
-      "name": "Specific point of interest name",
-      "description": "1-2 sentence description of what makes it special and unmissable",
-      "type": "landmark | museum | natural | food | cultural | neighborhood"
-    }
-  ],
-  "localTips": "2-3 practical tips from a local perspective: best time to visit, hidden gems, what to avoid, local customs.",
-  "closing": "One memorable sentence that leaves the visitor inspired and wanting to explore.",
-  "sources": ["Wikipedia", "Gemini AI"]
+Write one continuous guided-tour script of about 550-750 words.
+
+Style:
+- Start by welcoming the listener and placing them in the scene.
+- Guide them through the atmosphere as if they are standing there now.
+- Include a little history, but only the most memorable details.
+- Use phrases like "look around", "as we move closer", or "imagine standing here" when natural.
+- Keep sentences short enough for text-to-speech.
+- End with a warm sign-off that invites them to keep exploring.
+- Do not use headings, bullets, markdown, JSON, or labels.
+- Do not mention sources, APIs, Gemini, ElevenLabs, or prompts.
+- Do not invent exact facts if the source context is uncertain.`;
 }
 
-The mustSee array should have 3-5 items specific to this location. Make the content rich, specific, and genuinely useful.`;
+function cleanScript(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/^["']|["']$/g, "")
+    .replace(/\*\*/g, "")
+    .replace(/^#+\s*/gm, "")
+    .replace(/^\s*[-*]\s+/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
-function extractJson(text: string): string {
-  const mdMatch = text.match(/```(?:json)?\n?([\s\S]+?)\n?```/);
-  if (mdMatch) return mdMatch[1].trim();
+function splitSentences(text: string): string[] {
+  return text
+    .replace(/\s+/g, " ")
+    .match(/[^.!?]+[.!?]+(?:\s|$)/g)
+    ?.map((sentence) => sentence.trim())
+    .filter(Boolean) ?? [text.trim()];
+}
 
-  const jsonMatch = text.match(/\{[\s\S]+\}/);
-  if (jsonMatch) return jsonMatch[0];
+function takeSentences(sentences: string[], start: number, count: number): string {
+  return sentences.slice(start, start + count).join(" ").trim();
+}
 
-  return text.trim();
+function buildTourFromScript(ctx: PlaceContext, script: string): TourContent {
+  const sentences = splitSentences(script);
+  const welcomeCount = Math.min(3, Math.max(1, Math.ceil(sentences.length * 0.12)));
+  const closingCount = Math.min(2, Math.max(1, Math.ceil(sentences.length * 0.08)));
+  const welcome = takeSentences(sentences, 0, welcomeCount);
+  const closing = takeSentences(sentences, Math.max(welcomeCount, sentences.length - closingCount), closingCount);
+  const history = sentences
+    .slice(welcomeCount, Math.max(welcomeCount + 1, sentences.length - closingCount))
+    .join(" ")
+    .trim();
+
+  const curiosityPool = sentences.slice(welcomeCount + 2, welcomeCount + 12);
+  const curiosities = [
+    curiosityPool[0] || `${ctx.name} rewards a slower look; the details are part of the experience.`,
+    curiosityPool[2] || `This stop is best understood through its atmosphere, not only its dates.`,
+    curiosityPool[4] || `Listen for how the story of the place changes as you move through it.`,
+  ].map((item) => item.replace(/^Here is something worth noticing\.\s*/i, ""));
+
+  return {
+    welcome,
+    history,
+    curiosities,
+    mustSee: [
+      {
+        name: ctx.name,
+        description: `Begin at the heart of ${ctx.name}. Take a moment to look around and let the scale, rhythm, and atmosphere settle in before moving on.`,
+        type: "cultural",
+      },
+      {
+        name: "Surrounding streets",
+        description: "Move slowly through the nearby streets and notice how daily life, architecture, and small details frame the larger story of the place.",
+        type: "neighborhood",
+      },
+      {
+        name: "Best viewpoint",
+        description: "Find a wider view when you can. It helps connect the landmarks, the movement of people, and the shape of the city around you.",
+        type: "landmark",
+      },
+    ],
+    localTips:
+      "Take your time, keep the route flexible, and pause when something catches your eye. If you are visiting in person, check local opening hours and arrive earlier in the day for a calmer experience.",
+    closing,
+    sources: ctx.wikiExtract ? ["Wikipedia", "Gemini AI"] : ["Gemini AI"],
+  };
 }
 
 export async function generateTourContent(ctx: PlaceContext): Promise<GeminiResult> {
   const model = getGeminiModel();
   const prompt = buildPrompt(ctx);
 
-  const result = await model.generateContent(prompt);
-  const response = result.response;
-  const text = response.text();
-  const usage = response.usageMetadata;
-
-  let parsed: TourContent;
-
   try {
-    parsed = JSON.parse(extractJson(text)) as TourContent;
+    const result = await model.generateContent(prompt);
+    const script = cleanScript(result.response.text());
+
+    if (!script) {
+      throw new Error("Gemini returned an empty tour script.");
+    }
+
+    return {
+      tour: buildTourFromScript(ctx, script),
+      tokens: result.response.usageMetadata?.totalTokenCount ?? 0,
+    };
   } catch (err) {
-    throw new Error(
-      `Failed to parse Gemini response as JSON: ${(err as Error).message}`
-    );
-  }
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("429") || message.toLowerCase().includes("quota")) {
+      throw new Error(
+        "Gemini quota is exhausted for this API key/model. Check billing/quota, wait for the retry window, or set GEMINI_MODEL in backend/.env."
+      );
+    }
 
-  if (ctx.wikiExtract && !parsed.sources?.includes("Wikipedia")) {
-    parsed.sources = [...(parsed.sources ?? []), "Wikipedia"];
+    throw err;
   }
-
-  return {
-    tour: parsed,
-    tokens: usage?.totalTokenCount ?? 0,
-  };
 }
