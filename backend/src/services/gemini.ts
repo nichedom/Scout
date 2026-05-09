@@ -1,21 +1,30 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import type { TourContent, TripCostBreakdown, TripPlan, TripLeg } from "../types";
+import type {
+  TourContent,
+  TripCostBreakdown,
+  TripPlan,
+  TripLeg,
+} from "../types";
 
-let geminiModelSingleton: ReturnType<GoogleGenerativeAI["getGenerativeModel"]> | null = null;
+let geminiModelSingleton: ReturnType<
+  GoogleGenerativeAI["getGenerativeModel"]
+> | null = null;
 
-function getGeminiModel(): ReturnType<GoogleGenerativeAI["getGenerativeModel"]> {
+function getGeminiModel(): ReturnType<
+  GoogleGenerativeAI["getGenerativeModel"]
+> {
   if (geminiModelSingleton) return geminiModelSingleton;
 
   const key = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, "");
   if (!key) {
     throw new Error(
-      "GEMINI_API_KEY is missing in backend/.env — tours need a Gemini API key."
+      "GEMINI_API_KEY is missing in backend/.env — tours need a Gemini API key.",
     );
   }
 
   const genAI = new GoogleGenerativeAI(key);
   geminiModelSingleton = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: "gemini-3.1-flash-lite",
     generationConfig: {
       responseMimeType: "application/json",
       temperature: 0.85,
@@ -91,7 +100,9 @@ function extractJson(text: string): string {
   return text.trim();
 }
 
-export async function generateTourContent(ctx: PlaceContext): Promise<GeminiResult> {
+export async function generateTourContent(
+  ctx: PlaceContext,
+): Promise<GeminiResult> {
   const model = getGeminiModel();
   const prompt = buildPrompt(ctx);
 
@@ -106,7 +117,7 @@ export async function generateTourContent(ctx: PlaceContext): Promise<GeminiResu
     parsed = JSON.parse(extractJson(text)) as TourContent;
   } catch (err) {
     throw new Error(
-      `Failed to parse Gemini response as JSON: ${(err as Error).message}`
+      `Failed to parse Gemini response as JSON: ${(err as Error).message}`,
     );
   }
 
@@ -130,14 +141,21 @@ interface TripCostContext {
 }
 
 function buildTripCostPrompt(ctx: TripCostContext): string {
-  const poiList = ctx.mustSee
-    .filter((p) => ctx.selectedPois.includes(p.name))
-    .map((p) => `  - ${p.name} (${p.type}): ${p.description}`)
-    .join("\n") || '  No specific POI data available.';
+  const poiList =
+    ctx.mustSee
+      .filter((p) => ctx.selectedPois.includes(p.name))
+      .map((p) => `  - ${p.name} (${p.type}): ${p.description}`)
+      .join("\n") || "  No specific POI data available.";
 
-  const legList = ctx.legs.length > 0
-    ? ctx.legs.map((l) => `  ${l.from} → ${l.to}: ${l.distanceKm.toFixed(1)} km, ${l.durationMin} min by ${l.mode}`).join('\n')
-    : `  Direct trip to ${ctx.location}`;
+  const legList =
+    ctx.legs.length > 0
+      ? ctx.legs
+          .map(
+            (l) =>
+              `  ${l.from} → ${l.to}: ${l.distanceKm.toFixed(1)} km, ${l.durationMin} min by ${l.mode}`,
+          )
+          .join("\n")
+      : `  Direct trip to ${ctx.location}`;
 
   return `You are a travel budget estimator for a trip from ${ctx.location} to ${ctx.destination}.
 
@@ -174,7 +192,9 @@ Rules:
 - totalDurationMin should be the sum of all leg durations plus a reasonable visit time per stop (assume ~1 hour per stop)`;
 }
 
-export async function generateTripCosts(ctx: TripCostContext): Promise<TripPlan> {
+export async function generateTripCosts(
+  ctx: TripCostContext,
+): Promise<TripPlan> {
   const model = getGeminiModel();
   const prompt = buildTripCostPrompt(ctx);
 
@@ -193,7 +213,9 @@ export async function generateTripCosts(ctx: TripCostContext): Promise<TripPlan>
   try {
     parsed = JSON.parse(extractJson(text)) as typeof parsed;
   } catch (err) {
-    throw new Error(`Failed to parse Gemini trip cost response as JSON: ${(err as Error).message}`);
+    throw new Error(
+      `Failed to parse Gemini trip cost response as JSON: ${(err as Error).message}`,
+    );
   }
 
   return {
