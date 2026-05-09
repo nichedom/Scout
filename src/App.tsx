@@ -5,6 +5,7 @@ import ContentPanel from './components/ContentPanel';
 import { useTourStore } from './store/useTourStore';
 import { generateTour } from './services/api';
 import type { LocationData } from './types';
+import { DEMO_LOCATION_TOKYO_SHIBUYA } from './constants/demoLocation';
 
 export default function App() {
   const {
@@ -86,12 +87,20 @@ export default function App() {
         {phase === 'landing' ? (
           <motion.div
             key="search-landing"
-            className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 w-full max-w-2xl px-6"
+            className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 w-full max-w-2xl px-6 flex flex-col items-center gap-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0, transition: { delay: 1 } }}
             exit={{ opacity: 0, y: -10, transition: { duration: 0.25 } }}
           >
             <SearchBar onSelect={handleLocationSelect} />
+            <button
+              type="button"
+              onClick={() => handleLocationSelect(DEMO_LOCATION_TOKYO_SHIBUYA)}
+              className="glass rounded-xl px-5 py-2.5 text-xs font-mono text-white/55 hover:text-amber-400/95 hover:border-amber-400/25 transition-colors"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              Skip search · try static Tokyo (Shibuya)
+            </button>
           </motion.div>
         ) : (
           <motion.div

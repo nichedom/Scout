@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { GoogleMap, StreetViewPanorama, useLoadScript } from '@react-google-maps/api';
+import { GoogleMap, StreetViewPanorama } from '@react-google-maps/api';
+import { useGoogleMaps } from '../context/GoogleMapsProvider';
 import { useTourStore } from '../store/useTourStore';
-
-const LIBRARIES: ('places')[] = ['places'];
 
 const MAP_OPTIONS: google.maps.MapOptions = {
   disableDefaultUI: true,
@@ -19,16 +18,26 @@ export default function MapView() {
   const { location } = useTourStore();
   const [mode, setMode] = useState<'map' | 'street'>('street');
 
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
-    libraries: LIBRARIES,
-  });
+  const { isLoaded, loadError, apiKeyMissing } = useGoogleMaps();
 
   if (!location) return null;
 
+  if (apiKeyMissing || loadError) {
+    const msg = apiKeyMissing
+      ? 'Missing Maps browser key in repo-root .env — see /maps-demo.html.'
+      : (loadError?.message ?? 'Could not load Google Maps.');
+    return (
+      <div className="h-full min-h-0 flex items-center justify-center px-6">
+        <p className="text-sm font-mono text-amber-400/90 text-center" role="alert">
+          {msg}
+        </p>
+      </div>
+    );
+  }
+
   if (!isLoaded) {
     return (
-      <div className="h-full flex items-center justify-center">
+      <div className="h-full min-h-0 flex items-center justify-center">
         <div className="text-white/30 text-sm font-mono">Loading maps…</div>
       </div>
     );
@@ -37,7 +46,7 @@ export default function MapView() {
   const center = { lat: location.lat, lng: location.lng };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full min-h-0 flex flex-col">
       {/* Mode toggle */}
       <div className="flex-shrink-0 px-5 py-3 flex gap-2">
         {(['street', 'map'] as const).map((m) => (
@@ -60,8 +69,8 @@ export default function MapView() {
         </span>
       </div>
 
-      {/* Map area */}
-      <div className="flex-1 relative">
+      {/* Map area — min-h-0 so nested flex gives the map a real height */}
+      <div className="flex-1 min-h-0 relative">
         <GoogleMap
           mapContainerStyle={{ width: '100%', height: '100%' }}
           center={center}

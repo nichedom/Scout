@@ -21,7 +21,7 @@ export default function ContentPanel({ onBack }: Props) {
 
   return (
     <div
-      className="h-full flex flex-col"
+      className="h-full min-h-0 flex flex-col"
       style={{
         background: 'linear-gradient(180deg, #080d14 0%, #0e1824 100%)',
         borderLeft: '1px solid var(--border)',
@@ -84,12 +84,12 @@ export default function ContentPanel({ onBack }: Props) {
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
         <AnimatePresence mode="wait">
           {activeTab === 'tour' && (
             <motion.div
               key="tour"
-              className="h-full"
+              className="h-full min-h-0 flex-1"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
@@ -101,7 +101,7 @@ export default function ContentPanel({ onBack }: Props) {
           {activeTab === 'map' && (
             <motion.div
               key="map"
-              className="h-full"
+              className="h-full min-h-0 flex-1 flex flex-col"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -113,7 +113,7 @@ export default function ContentPanel({ onBack }: Props) {
           {activeTab === 'pipeline' && (
             <motion.div
               key="pipeline"
-              className="h-full"
+              className="h-full min-h-0 flex-1"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}

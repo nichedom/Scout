@@ -2,8 +2,15 @@
   "name": "scout-frontend",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
+    "predev": "node scripts/check-node.js",
+    "prestart": "node scripts/check-node.js",
+    "prebackend": "node scripts/check-node.js",
     "dev": "vite",
+    "demo:maps": "vite --open /maps-demo.html",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -11,6 +18,7 @@
     "start": "concurrently \"npm run dev\" \"npm run backend\""
   },
   "dependencies": {
+    "@googlemaps/js-api-loader": "^1.16.10",
     "@react-google-maps/api": "^2.20.3",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.17.14",

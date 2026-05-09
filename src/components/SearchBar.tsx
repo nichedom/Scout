@@ -1,8 +1,17 @@
-import { useRef, useState } from 'react';
-import { StandaloneSearchBox, useLoadScript } from '@react-google-maps/api';
+import { useEffect, useRef, useState } from 'react';
+import { useGoogleMaps } from '../context/GoogleMapsProvider';
 import type { LocationData } from '../types';
 
-const LIBRARIES: ('places')[] = ['places'];
+const FETCH_PLACE_FIELDS = ['id', 'location', 'displayName', 'formattedAddress', 'types'] as const;
+
+function latLngToCoords(loc: google.maps.LatLng | google.maps.LatLngLiteral): { lat: number; lng: number } {
+  const asLit = loc as google.maps.LatLngLiteral;
+  if (typeof asLit.lat === 'number' && typeof asLit.lng === 'number') {
+    return { lat: asLit.lat, lng: asLit.lng };
+  }
+  const ll = loc as google.maps.LatLng;
+  return { lat: ll.lat(), lng: ll.lng() };
+}
 
 interface Props {
   onSelect: (loc: LocationData) => void;
@@ -10,32 +19,124 @@ interface Props {
 }
 
 export default function SearchBar({ onSelect, compact = false }: Props) {
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
-    libraries: LIBRARIES,
-  });
-
-  const searchBoxRef = useRef<google.maps.places.SearchBox | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const { isLoaded, loadError, apiKeyMissing } = useGoogleMaps();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const onSelectRef = useRef(onSelect);
   const [focused, setFocused] = useState(false);
+  const [widgetError, setWidgetError] = useState<string | null>(null);
+  const [widgetReady, setWidgetReady] = useState(false);
 
-  const handlePlacesChanged = () => {
-    const places = searchBoxRef.current?.getPlaces();
-    if (!places || places.length === 0) return;
-    const place = places[0];
-    if (!place.geometry?.location) return;
+  onSelectRef.current = onSelect;
 
-    onSelect({
-      name: place.name || '',
-      address: place.formatted_address || '',
-      lat: place.geometry.location.lat(),
-      lng: place.geometry.location.lng(),
-      placeId: place.place_id,
-      types: place.types,
-    });
+  useEffect(() => {
+    if (!isLoaded || apiKeyMissing) return;
 
-    if (inputRef.current) inputRef.current.blur();
-  };
+    const root = containerRef.current;
+    if (!root) return;
+
+    let cancelled = false;
+    let pac: google.maps.places.PlaceAutocompleteElement | null = null;
+
+    setWidgetReady(false);
+    setWidgetError(null);
+    root.replaceChildren();
+
+    (async () => {
+      try {
+        const placesLib = (await google.maps.importLibrary('places')) as google.maps.PlacesLibrary & {
+          PlaceAutocompleteElement?: typeof google.maps.places.PlaceAutocompleteElement;
+        };
+
+        const Ctor = placesLib.PlaceAutocompleteElement;
+        if (!Ctor) {
+          throw new Error(
+            'PlaceAutocompleteElement missing from Maps loader — enable Places API (New) for your project.'
+          );
+        }
+
+        pac = new Ctor({});
+        pac.setAttribute(
+          'placeholder',
+          compact ? 'Search places…' : 'Search any city, landmark, or neighborhood…'
+        );
+
+        pac.style.width = '100%';
+        pac.style.boxSizing = 'border-box';
+
+        const onSelectPlace = async (event: Event) => {
+          const detail = event as unknown as {
+            placePrediction?: google.maps.places.PlacePrediction;
+            place?: google.maps.places.Place;
+          };
+
+          let place: google.maps.places.Place | undefined;
+          if (detail.placePrediction) {
+            place = detail.placePrediction.toPlace();
+          } else if (detail.place) {
+            place = detail.place;
+          }
+          if (!place) return;
+
+          try {
+            await place.fetchFields({ fields: [...FETCH_PLACE_FIELDS] });
+          } catch (e) {
+            console.error('[SearchBar] fetchFields:', e);
+            return;
+          }
+
+          const loc = place.location;
+          if (!loc) return;
+
+          const { lat, lng } = latLngToCoords(loc);
+          onSelectRef.current({
+            name: place.displayName ?? '',
+            address: place.formattedAddress ?? '',
+            lat,
+            lng,
+            placeId: place.id,
+            types: place.types,
+          });
+        };
+
+        pac.addEventListener('gmp-select', onSelectPlace);
+        pac.addEventListener('focusin', () => setFocused(true));
+        pac.addEventListener('focusout', () => setFocused(false));
+
+        if (cancelled) return;
+
+        root.appendChild(pac);
+        setWidgetReady(true);
+      } catch (e) {
+        if (!cancelled) {
+          setWidgetError((e as Error).message);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (pac?.parentNode) {
+        pac.remove();
+      }
+      root.replaceChildren();
+      setWidgetReady(false);
+    };
+  }, [isLoaded, apiKeyMissing, compact]);
+
+  if (apiKeyMissing || loadError) {
+    const msg = apiKeyMissing
+      ? 'Missing Maps browser key in repo-root .env (VITE_GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY). See /maps-demo.html.'
+      : (loadError?.message ?? 'Google Maps failed to load.');
+    return (
+      <div
+        className={`w-full glass rounded-xl px-4 py-3 text-xs font-mono text-amber-400/90 ${compact ? '' : 'py-4'}`}
+        style={{ borderColor: 'rgba(245,166,35,0.35)' }}
+        role="alert"
+      >
+        {msg}
+      </div>
+    );
+  }
 
   if (!isLoaded) {
     return (
@@ -48,54 +149,63 @@ export default function SearchBar({ onSelect, compact = false }: Props) {
     );
   }
 
-  return (
-    <StandaloneSearchBox
-      onLoad={(ref) => (searchBoxRef.current = ref)}
-      onPlacesChanged={handlePlacesChanged}
-    >
-      <div className={`relative transition-all duration-300 ${focused ? 'scale-[1.01]' : ''}`}>
-        {/* Search icon */}
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none z-10">
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke={focused ? 'var(--amber)' : 'rgba(107,143,168,0.7)'}
-            viewBox="0 0 24 24"
-            strokeWidth={2}
-          >
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.35-4.35" />
-          </svg>
-        </div>
+  if (widgetError) {
+    return (
+      <div
+        className="w-full glass rounded-xl px-4 py-3 text-xs font-mono text-amber-400/90"
+        style={{ borderColor: 'rgba(245,166,35,0.35)' }}
+        role="alert"
+      >
+        {widgetError}
+      </div>
+    );
+  }
 
-        <input
-          ref={inputRef}
-          type="text"
-          placeholder={compact ? 'Search places…' : 'Search any city, landmark, or neighborhood…'}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+  return (
+    <div
+      className={`relative transition-all duration-300 ${focused ? 'scale-[1.01]' : ''}`}
+    >
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none z-10">
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          stroke={focused ? 'var(--amber)' : 'rgba(107,143,168,0.7)'}
+          viewBox="0 0 24 24"
+          strokeWidth={2}
+        >
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.35-4.35" />
+        </svg>
+      </div>
+
+      <div className="relative w-full">
+        <div
+          ref={containerRef}
           className={`
-            w-full glass rounded-xl outline-none transition-all duration-300
-            font-body text-white placeholder-white/25
-            ${compact
-              ? 'pl-10 pr-4 py-2.5 text-sm'
-              : 'pl-12 pr-6 py-4 text-base'
-            }
+            w-full glass rounded-xl overflow-hidden
+            ${compact ? 'min-h-[40px]' : 'min-h-[56px]'}
+            ${widgetReady ? 'pl-10' : ''}
           `}
           style={{
             borderColor: focused ? 'var(--amber)' : 'var(--border)',
             boxShadow: focused ? 'var(--glow-amber)' : 'none',
           }}
         />
-
-        {!compact && (
-          <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
-            <kbd className="text-[10px] text-white/20 font-mono border border-white/10 rounded px-1.5 py-0.5">
-              Enter
-            </kbd>
-          </div>
+        {!widgetReady && (
+          <div
+            className="absolute inset-0 rounded-xl animate-pulse pointer-events-none bg-white/[0.03]"
+            aria-hidden
+          />
         )}
       </div>
-    </StandaloneSearchBox>
+
+      {!compact && widgetReady && (
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none">
+          <kbd className="text-[10px] text-white/20 font-mono border border-white/10 rounded px-1.5 py-0.5">
+            Enter
+          </kbd>
+        </div>
+      )}
+    </div>
   );
 }

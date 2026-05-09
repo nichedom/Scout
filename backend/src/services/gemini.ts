@@ -1,20 +1,34 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { TourContent } from '../types';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+let geminiModelSingleton: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
 
-const model = genAI.getGenerativeModel({
-  model: 'gemini-2.0-flash',
-  generationConfig: {
-    responseMimeType: 'application/json',
-    temperature: 0.85,
-    maxOutputTokens: 2048,
-  },
-  systemInstruction: `You are an expert travel guide, historian, and cultural analyst with the voice of a passionate storyteller.
+function getGeminiModel(): ReturnType<GoogleGenerativeAI['getGenerativeModel']> {
+  if (geminiModelSingleton) return geminiModelSingleton;
+
+  const key = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, '');
+  if (!key) {
+    throw new Error(
+      'GEMINI_API_KEY is missing in backend/.env — tours need a Gemini API key.'
+    );
+  }
+
+  const genAI = new GoogleGenerativeAI(key);
+  geminiModelSingleton = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash',
+    generationConfig: {
+      responseMimeType: 'application/json',
+      temperature: 0.85,
+      maxOutputTokens: 2048,
+    },
+    systemInstruction: `You are an expert travel guide, historian, and cultural analyst with the voice of a passionate storyteller.
 Your goal is to craft vivid, engaging, and educational narratives about places — mixing history, culture, local insights, and atmosphere.
 Adapt your tone: solemn for historic sites, animated for lively districts, poetic for natural landscapes.
 Always respond with valid JSON matching the exact schema provided. No markdown, no explanation — only the JSON object.`,
-});
+  });
+
+  return geminiModelSingleton;
+}
 
 interface PlaceContext {
   name: string;
@@ -83,6 +97,7 @@ function extractJson(text: string): string {
 }
 
 export async function generateTourContent(ctx: PlaceContext): Promise<GeminiResult> {
+  const model = getGeminiModel();
   const prompt = buildPrompt(ctx);
 
   const result = await model.generateContent(prompt);

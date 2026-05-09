@@ -22,8 +22,20 @@ export async function generateTour(
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(err.error || `HTTP ${res.status}`);
+    const text = await res.text();
+    let message = `HTTP ${res.status}`;
+    const trimmed = text.trim();
+    if (!trimmed) {
+      message = `${message} — empty response (is backend :3001 up? Set GEMINI_API_KEY in backend/.env)`;
+    } else {
+      try {
+        const body = JSON.parse(trimmed) as { error?: string };
+        if (body?.error) message = body.error;
+      } catch {
+        message = trimmed.slice(0, 400);
+      }
+    }
+    throw new Error(message);
   }
 
   const data = await res.json();
