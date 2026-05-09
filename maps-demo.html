@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Maps demo — Scout</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        padding: 2rem;
+        max-width: 52rem;
+        line-height: 1.5;
+      }
+      #map {
+        width: 100%;
+        height: min(420px, 55vh);
+        border-radius: 8px;
+        border: 1px solid #cfd8e3;
+        margin-top: 0.75rem;
+      }
+      #map-wrap {
+        margin-top: 1.25rem;
+      }
+      #map-wrap h2 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0;
+      }
+      .ok {
+        color: #0d7d4d;
+      }
+      .err {
+        color: #b00020;
+      }
+      pre {
+        background: #f2f4f7;
+        padding: 1rem;
+        overflow: auto;
+        font-size: 0.85rem;
+      }
+      code {
+        font-size: 0.9em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Maps demo</h1>
+    <p>
+      Uses repo-root <code>.env</code> (<code>VITE_GOOGLE_MAPS_API_KEY</code> or <code>GOOGLE_MAPS_API_KEY</code>).
+      Open <code>/maps-demo.html</code> while <code>npm run dev</code> runs, or run <code>npm run demo:maps</code>.
+    </p>
+    <div id="out">Loading…</div>
+    <div id="map-wrap" hidden>
+      <h2 id="map-title"></h2>
+      <div id="map" role="application" aria-label="Google Map demo"></div>
+    </div>
+    <script type="module" src="/src/maps-demo.ts"></script>
+  </body>
+</html>
