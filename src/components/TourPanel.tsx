@@ -71,7 +71,7 @@ function geocodePoiForStreetView(
 }
 
 export default function TourPanel() {
-  const { tourContent, isLoading, location, setStreetViewFocus } = useTourStore();
+  const { tourContent, isLoading, location, setStreetViewFocus, setActiveTab } = useTourStore();
   const { isLoaded: mapsLoaded } = useGoogleMaps();
   const audioPlayerRef = useRef<AudioPlayerHandle>(null);
 
@@ -209,6 +209,16 @@ export default function TourPanel() {
               Sources · {tourContent.sources.join(', ')}
             </motion.div>
           )}
+
+          {/* Plan my visit */}
+          <motion.div variants={stagger.item} className="pt-2 pb-4">
+            <button
+              onClick={() => setActiveTab('trip')}
+              className="w-full py-3 rounded-xl font-mono text-sm bg-amber-400/10 border border-amber-400/20 text-amber-400 hover:bg-amber-400/20 transition-all"
+            >
+              Plan my visit â†’
+            </button>
+          </motion.div>
         </motion.div>
       )}
     </div>

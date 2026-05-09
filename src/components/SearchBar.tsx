@@ -102,6 +102,10 @@ export default function SearchBar({ onSelect, compact = false }: Props) {
           compact ? 'Search places…' : 'Search any city, landmark, or neighborhood…'
         );
 
+        if (compact) {
+          pac.classList.add('compact');
+        }
+
         pac.style.width = '100%';
         pac.style.boxSizing = 'border-box';
         pac.style.borderRadius = '12px';

@@ -1,21 +1,30 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import type { TourContent } from "../types";
+import type {
+  TourContent,
+  TripCostBreakdown,
+  TripPlan,
+  TripLeg,
+} from "../types";
 
-let geminiModelSingleton: ReturnType<GoogleGenerativeAI["getGenerativeModel"]> | null = null;
+let geminiModelSingleton: ReturnType<
+  GoogleGenerativeAI["getGenerativeModel"]
+> | null = null;
 
-function getGeminiModel(): ReturnType<GoogleGenerativeAI["getGenerativeModel"]> {
+function getGeminiModel(): ReturnType<
+  GoogleGenerativeAI["getGenerativeModel"]
+> {
   if (geminiModelSingleton) return geminiModelSingleton;
 
   const key = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, "");
   if (!key) {
     throw new Error(
-      "GEMINI_API_KEY is missing in backend/.env — tours need a Gemini API key."
+      "GEMINI_API_KEY is missing in backend/.env — tours need a Gemini API key.",
     );
   }
 
   const genAI = new GoogleGenerativeAI(key);
   geminiModelSingleton = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: "gemini-3.1-flash-lite",
     generationConfig: {
       responseMimeType: "application/json",
       temperature: 0.85,
@@ -91,7 +100,9 @@ function extractJson(text: string): string {
   return text.trim();
 }
 
-export async function generateTourContent(ctx: PlaceContext): Promise<GeminiResult> {
+export async function generateTourContent(
+  ctx: PlaceContext,
+): Promise<GeminiResult> {
   const model = getGeminiModel();
   const prompt = buildPrompt(ctx);
 
@@ -106,7 +117,7 @@ export async function generateTourContent(ctx: PlaceContext): Promise<GeminiResu
     parsed = JSON.parse(extractJson(text)) as TourContent;
   } catch (err) {
     throw new Error(
-      `Failed to parse Gemini response as JSON: ${(err as Error).message}`
+      `Failed to parse Gemini response as JSON: ${(err as Error).message}`,
     );
   }
 
@@ -117,5 +128,102 @@ export async function generateTourContent(ctx: PlaceContext): Promise<GeminiResu
   return {
     tour: parsed,
     tokens: usage?.totalTokenCount ?? 0,
+  };
+}
+
+interface TripCostContext {
+  location: string;
+  destination: string;
+  selectedPois: string[];
+  mustSee: { name: string; description: string; type: string }[];
+  travelMode: string;
+  legs: TripLeg[];
+}
+
+function buildTripCostPrompt(ctx: TripCostContext): string {
+  const poiList =
+    ctx.mustSee
+      .filter((p) => ctx.selectedPois.includes(p.name))
+      .map((p) => `  - ${p.name} (${p.type}): ${p.description}`)
+      .join("\n") || "  No specific POI data available.";
+
+  const legList =
+    ctx.legs.length > 0
+      ? ctx.legs
+          .map(
+            (l) =>
+              `  ${l.from} → ${l.to}: ${l.distanceKm.toFixed(1)} km, ${l.durationMin} min by ${l.mode}`,
+          )
+          .join("\n")
+      : `  Direct trip to ${ctx.location}`;
+
+  return `You are a travel budget estimator for a trip from ${ctx.location} to ${ctx.destination}.
+
+Available attractions near the destination:
+${poiList}
+
+Route details:
+${legList}
+
+Travel mode: ${ctx.travelMode}
+
+Return a JSON object with EXACTLY this structure:
+{
+  "costs": [
+    {
+      "stopName": "Name of the stop or activity",
+      "entryCost": "~$X USD" or "Free",
+      "mealBudget": "~$X–Y USD",
+      "notes": "A practical note about this stop's cost"
+    }
+  ],
+  "totalBudgetMin": "~$X USD",
+  "totalBudgetMax": "~$Y USD",
+  "totalDurationMin": 0,
+  "tips": "2-3 practical budget tips for visiting this destination"
+}
+
+Rules:
+- Include 3-5 relevant stops/activities at the destination, drawing from the POI data if available
+- Use local currency equivalent with USD in parentheses, e.g. "~€12 ($13 USD)" or just "~$15 USD" if USD is local
+- Prefix all estimates with "~" to indicate approximation
+- Include entry fees, average meal costs, and transport
+- totalBudgetMin/Max should cover entry + meals + transport for the whole trip
+- totalDurationMin should be the sum of all leg durations plus a reasonable visit time per stop (assume ~1 hour per stop)`;
+}
+
+export async function generateTripCosts(
+  ctx: TripCostContext,
+): Promise<TripPlan> {
+  const model = getGeminiModel();
+  const prompt = buildTripCostPrompt(ctx);
+
+  const result = await model.generateContent(prompt);
+  const response = result.response;
+  const text = response.text();
+
+  let parsed: {
+    costs: TripCostBreakdown[];
+    totalBudgetMin: string;
+    totalBudgetMax: string;
+    totalDurationMin: number;
+    tips: string;
+  };
+
+  try {
+    parsed = JSON.parse(extractJson(text)) as typeof parsed;
+  } catch (err) {
+    throw new Error(
+      `Failed to parse Gemini trip cost response as JSON: ${(err as Error).message}`,
+    );
+  }
+
+  return {
+    legs: ctx.legs,
+    costs: parsed.costs,
+    totalBudgetMin: parsed.totalBudgetMin,
+    totalBudgetMax: parsed.totalBudgetMax,
+    totalDurationMin: parsed.totalDurationMin,
+    tips: parsed.tips,
   };
 }

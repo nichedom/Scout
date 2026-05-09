@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import tourRouter from './routes/tour';
 import narrationRouter from './routes/narration';
+import tripRouter from './routes/trip';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -29,6 +30,7 @@ app.get('/api/health', (_, res) => {
 });
 app.use('/api/tour', tourRouter);
 app.use('/api/narration', narrationRouter);
+app.use('/api/trip', tripRouter);
 
 // 404 fallback
 app.use((_req, res) => {
