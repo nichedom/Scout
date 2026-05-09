@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 import { useCallback, useRef, type ReactNode } from 'react';
 import { useGoogleMaps } from '../context/GoogleMapsProvider';
-import { useTourStore } from '../store/useTourStore';
+import { photosFromLegacyPlace } from '../services/placePhotos';
+import { useTourStore, type StreetViewFocus } from '../store/useTourStore';
 import type { LocationData, PointOfInterest } from '../types';
 import AudioPlayer, { type AudioPlayerHandle } from './AudioPlayer';
 
@@ -12,6 +13,14 @@ const stagger = {
     animate: { opacity: 1, y: 0, transition: { duration: 0.4 } },
   },
 };
+
+const BAD_PLACE_TYPES = new Set([
+  'subway_station',
+  'transit_station',
+  'train_station',
+  'parking',
+  'lodging',
+]);
 
 function Skeleton({ lines = 3 }: { lines?: number }) {
   return (
@@ -48,26 +57,121 @@ function geocodeBiasBounds(lat: number, lng: number, radiusKm: number) {
   );
 }
 
-function geocodePoiForStreetView(
-  poi: PointOfInterest,
-  loc: LocationData,
-  onLatLng: (lat: number, lng: number) => void,
-) {
-  const geocoder = new google.maps.Geocoder();
-  const bounds = geocodeBiasBounds(loc.lat, loc.lng, 28);
-  const run = (address: string, next?: () => void) => {
-    geocoder.geocode({ address, bounds }, (results, status) => {
-      if (status === 'OK' && results?.[0]?.geometry?.location) {
-        const p = results[0].geometry.location;
-        onLatLng(p.lat(), p.lng());
-      } else if (next) {
-        next();
-      }
-    });
-  };
-  run(`${poi.name}, ${loc.name}`, () => {
-    run(`${poi.name}, ${loc.address}`);
+function tokenScore(name: string, query: string) {
+  const normalizedName = name.toLowerCase();
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((token) => token.length > 2 && normalizedName.includes(token))
+    .length;
+}
+
+function placeTypePenalty(types?: string[]) {
+  return types?.some((type) => BAD_PLACE_TYPES.has(type)) ? 4 : 0;
+}
+
+function resolvePoiWithPlaces(poi: PointOfInterest, loc: LocationData): Promise<StreetViewFocus | null> {
+  return new Promise((resolve) => {
+    if (!google.maps.places?.PlacesService) {
+      resolve(null);
+      return;
+    }
+
+    const serviceNode = document.createElement('div');
+    const service = new google.maps.places.PlacesService(serviceNode);
+    const location = new google.maps.LatLng(loc.lat, loc.lng);
+    const query = `${poi.name} ${loc.name}`;
+
+    service.textSearch(
+      {
+        query,
+        location,
+        radius: 8000,
+      },
+      (results, status) => {
+        if (status !== google.maps.places.PlacesServiceStatus.OK || !results?.length) {
+          resolve(null);
+          return;
+        }
+
+        const ranked = results
+          .filter((result) => result.geometry?.location)
+          .map((result) => {
+            const name = result.name ?? '';
+            const placeLocation = result.geometry!.location!;
+            const distanceKm = google.maps.geometry?.spherical
+              ? google.maps.geometry.spherical.computeDistanceBetween(location, placeLocation) / 1000
+              : 0;
+            const score =
+              tokenScore(name, poi.name) * 3 +
+              tokenScore(result.formatted_address ?? '', loc.name) -
+              placeTypePenalty(result.types) -
+              Math.min(distanceKm, 8) * 0.15;
+
+            return { result, score };
+          })
+          .sort((a, b) => b.score - a.score);
+
+        const best = ranked[0]?.result;
+        const bestLocation = best?.geometry?.location;
+        if (!best || !bestLocation) {
+          resolve(null);
+          return;
+        }
+
+        resolve({
+          lat: bestLocation.lat(),
+          lng: bestLocation.lng(),
+          lookAt: {
+            lat: bestLocation.lat(),
+            lng: bestLocation.lng(),
+          },
+          label: best.name || poi.name,
+          placeId: best.place_id,
+          photos: photosFromLegacyPlace(best.photos),
+        });
+      },
+    );
   });
+}
+
+function geocodePoiForStreetView(poi: PointOfInterest, loc: LocationData): Promise<StreetViewFocus | null> {
+  return new Promise((resolve) => {
+    const geocoder = new google.maps.Geocoder();
+    const bounds = geocodeBiasBounds(loc.lat, loc.lng, 28);
+    const run = (address: string, next?: () => void) => {
+      geocoder.geocode({ address, bounds }, (results, status) => {
+        if (status === 'OK' && results?.[0]?.geometry?.location) {
+          const p = results[0].geometry.location;
+          resolve({
+            lat: p.lat(),
+            lng: p.lng(),
+            lookAt: { lat: p.lat(), lng: p.lng() },
+            label: results[0].formatted_address || poi.name,
+          });
+        } else if (next) {
+          next();
+        } else {
+          resolve(null);
+        }
+      });
+    };
+    run(`${poi.name}, ${loc.name}`, () => {
+      run(`${poi.name}, ${loc.address}`);
+    });
+  });
+}
+
+async function resolvePoiFocus(poi: PointOfInterest, loc: LocationData): Promise<StreetViewFocus> {
+  return (
+    (await resolvePoiWithPlaces(poi, loc)) ??
+    (await geocodePoiForStreetView(poi, loc)) ?? {
+      lat: loc.lat,
+      lng: loc.lng,
+      lookAt: { lat: loc.lat, lng: loc.lng },
+      label: loc.name,
+    }
+  );
 }
 
 export default function TourPanel() {
@@ -79,8 +183,9 @@ export default function TourPanel() {
     (poi: PointOfInterest) => {
       void audioPlayerRef.current?.speakStop(poi);
       if (!location || !mapsLoaded || typeof google === 'undefined' || !google.maps) return;
-      geocodePoiForStreetView(poi, location, (lat, lng) => {
-        setStreetViewFocus({ lat, lng });
+
+      void resolvePoiFocus(poi, location).then((focus) => {
+        setStreetViewFocus(focus);
       });
     },
     [location, mapsLoaded, setStreetViewFocus],
@@ -122,7 +227,6 @@ export default function TourPanel() {
         >
           <AudioPlayer ref={audioPlayerRef} tourContent={tourContent} placeName={location?.name} autoPlay />
 
-          {/* Welcome */}
           <motion.div variants={stagger.item} className="mb-5">
             <blockquote
               className="text-base leading-relaxed text-white/85 border-l-2 pl-3.5"
@@ -132,14 +236,12 @@ export default function TourPanel() {
             </blockquote>
           </motion.div>
 
-          {/* History */}
           <Section title="History">
             <p className="text-sm leading-relaxed font-body" style={{ color: 'var(--text-secondary)' }}>
               {tourContent.history}
             </p>
           </Section>
 
-          {/* Curiosities */}
           <Section title="Did you know?">
             <ul className="space-y-1.5">
               {tourContent.curiosities.map((fact, i) => (
@@ -148,18 +250,17 @@ export default function TourPanel() {
                   className="flex gap-2.5 px-3 py-2 rounded-lg text-sm"
                   style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}
                 >
-                  <span className="flex-shrink-0 text-amber-400/70">·</span>
+                  <span className="flex-shrink-0 text-amber-400/70">-</span>
                   <span className="text-white/70">{fact}</span>
                 </li>
               ))}
             </ul>
           </Section>
 
-          {/* Must See */}
           {tourContent.mustSee.length > 0 && (
             <Section title="Must See">
               <p className="text-[10px] text-white/25 font-mono mb-2">
-                Tap a place · Street View moves there
+                Tap a place - Street View faces the landmark
               </p>
               <div className="space-y-2">
                 {tourContent.mustSee.map((poi, i) => (
@@ -182,7 +283,6 @@ export default function TourPanel() {
             </Section>
           )}
 
-          {/* Local tips */}
           {tourContent.localTips && (
             <Section title="Local Tips">
               <div
@@ -194,7 +294,6 @@ export default function TourPanel() {
             </Section>
           )}
 
-          {/* Closing */}
           {tourContent.closing && (
             <motion.div variants={stagger.item} className="mb-4">
               <p className="text-xs text-white/35 text-center">
@@ -203,20 +302,18 @@ export default function TourPanel() {
             </motion.div>
           )}
 
-          {/* Sources */}
           {tourContent.sources.length > 0 && (
             <motion.div variants={stagger.item} className="text-[10px] font-mono pb-4 text-white/20">
-              Sources · {tourContent.sources.join(', ')}
+              Sources - {tourContent.sources.join(', ')}
             </motion.div>
           )}
 
-          {/* Plan my visit */}
           <motion.div variants={stagger.item} className="pt-2 pb-4">
             <button
               onClick={() => setActiveTab('trip')}
               className="w-full py-3 rounded-xl font-mono text-sm bg-amber-400/10 border border-amber-400/20 text-amber-400 hover:bg-amber-400/20 transition-all"
             >
-              Plan my visit â†’
+              Plan my visit
             </button>
           </motion.div>
         </motion.div>

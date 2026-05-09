@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { LocationData, TourContent, PipelineStep, AppPhase, TripPlan, TripDestination } from '../types';
+import type { LocationData, TourContent, PipelineStep, AppPhase, TripPlan, TripDestination, PlacePhotoData } from '../types';
 
 const INITIAL_STEPS: PipelineStep[] = [
   { id: 'geocode', icon: '📍', label: 'Locating coordinates', status: 'idle' },
@@ -8,7 +8,14 @@ const INITIAL_STEPS: PipelineStep[] = [
   { id: 'gemini', icon: '✨', label: 'Gemini 2.5 Flash — generating narrative', status: 'idle' },
 ];
 
-export type StreetViewFocus = { lat: number; lng: number };
+export type StreetViewFocus = {
+  lat: number;
+  lng: number;
+  lookAt?: { lat: number; lng: number };
+  label?: string;
+  placeId?: string;
+  photos?: PlacePhotoData[];
+};
 
 interface TourStore {
   phase: AppPhase;

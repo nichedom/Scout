@@ -26,7 +26,7 @@ export function GoogleMapsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (import.meta.env.DEV && apiKeyMissing) {
       console.warn(
-        '[Scout Maps] No browser key — add VITE_GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY to repo-root .env and restart Vite (not backend/.env).'
+        '[Scout Maps] No browser key - add VITE_GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_API_KEY to repo-root .env and restart Vite (not backend/.env).'
       );
     }
   }, [apiKeyMissing]);
@@ -51,7 +51,7 @@ export function GoogleMapsProvider({ children }: { children: ReactNode }) {
     const loader = new Loader({
       apiKey,
       version: 'weekly',
-      libraries: ['places'],
+      libraries: ['places', 'geometry'],
     });
 
     loader
