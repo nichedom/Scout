@@ -1,27 +1,28 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import type { TourContent } from '../types';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import type { TourContent } from "../types";
 
-let geminiModelSingleton: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
+let geminiModelSingleton: ReturnType<GoogleGenerativeAI["getGenerativeModel"]> | null = null;
 
-function getGeminiModel(): ReturnType<GoogleGenerativeAI['getGenerativeModel']> {
+function getGeminiModel(): ReturnType<GoogleGenerativeAI["getGenerativeModel"]> {
   if (geminiModelSingleton) return geminiModelSingleton;
 
-  const key = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, '');
+  const key = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, "");
   if (!key) {
-    throw new Error('GEMINI_API_KEY is missing in backend/.env — tours need a Gemini API key.');
+    throw new Error(
+      "GEMINI_API_KEY is missing in backend/.env — tours need a Gemini API key."
+    );
   }
 
   const genAI = new GoogleGenerativeAI(key);
   geminiModelSingleton = genAI.getGenerativeModel({
-    model: 'gemini-3.1-flash-lite',
+    model: "gemini-2.5-flash",
     generationConfig: {
-      responseMimeType: 'application/json',
+      responseMimeType: "application/json",
       temperature: 0.85,
       maxOutputTokens: 4096,
     },
-    systemInstruction: `You are an expert travel guide, historian, and cultural analyst with the voice of a passionate storyteller.
-Your goal is to craft vivid, engaging, and educational narratives about places — mixing history, culture, local insights, and atmosphere.
-Adapt your tone: solemn for historic sites, animated for lively districts, poetic for natural landscapes.
+    systemInstruction: `You are a sharp travel guide. Be warm and specific, but concise — no filler, no lecture tone, no repetition.
+Prioritize clarity and scannability over volume.
 Always respond with valid JSON matching the exact schema provided. No markdown, no explanation — only the JSON object.`,
   });
 
@@ -44,8 +45,10 @@ interface GeminiResult {
 }
 
 function buildPrompt(ctx: PlaceContext): string {
-  const typeHint = ctx.types?.join(', ') || 'unknown type';
-  const wikiSection = ctx.wikiExtract ? `\n\nWikipedia context:\n"${ctx.wikiExtract}"` : '';
+  const typeHint = ctx.types?.join(", ") || "unknown type";
+  const wikiSection = ctx.wikiExtract
+    ? `\n\nWikipedia context:\n"${ctx.wikiExtract}"`
+    : "";
 
   return `You are creating a virtual tour guide narration for the following location:
 
@@ -56,28 +59,26 @@ Type: ${typeHint}${wikiSection}
 
 Return a JSON object with EXACTLY this structure:
 {
-  "welcome": "A vivid, evocative 2-3 sentence welcome that captures the spirit and atmosphere of this place. Should feel like the opening line of a great travel documentary.",
-  "history": "3-4 paragraphs about the history, significance, and evolution of this place. Be specific, not generic. Include key dates, people, or events if known.",
+  "welcome": "1-2 short sentences: essence of the place, no fluff.",
+  "history": "One compact paragraph (4-6 sentences max). Hit the through-line: why this place matters, 1-2 concrete dates or names if reliable, then stop.",
   "curiosities": [
-    "Fascinating fact 1 that most visitors don't know",
-    "Fascinating fact 2",
-    "Fascinating fact 3",
-    "Fascinating fact 4",
-    "Fascinating fact 5"
+    "One sentence fact 1",
+    "One sentence fact 2",
+    "One sentence fact 3"
   ],
   "mustSee": [
     {
-      "name": "Specific point of interest name",
-      "description": "1-2 sentence description of what makes it special and unmissable",
+      "name": "Specific point of interest name (real landmark / venue / district name)",
+      "description": "One short sentence on why go / what to notice",
       "type": "landmark | museum | natural | food | cultural | neighborhood"
     }
   ],
-  "localTips": "2-3 practical tips from a local perspective: best time to visit, hidden gems, what to avoid, local customs.",
-  "closing": "One memorable sentence that leaves the visitor inspired and wanting to explore.",
+  "localTips": "One or two short sentences: practical, concrete (timing, crowds, a single \"do this\").",
+  "closing": "One short punchy line to sign off.",
   "sources": ["Wikipedia", "Gemini AI"]
 }
 
-The mustSee array should have 3-5 items specific to this location. Make the content rich, specific, and genuinely useful.`;
+Rules: fewer words beat more. No bullet-style phrasing inside string fields. mustSee must have exactly 3 or 4 items, each a real, googleable place name tied to this location (not vague).`;
 }
 
 function extractJson(text: string): string {
@@ -104,11 +105,13 @@ export async function generateTourContent(ctx: PlaceContext): Promise<GeminiResu
   try {
     parsed = JSON.parse(extractJson(text)) as TourContent;
   } catch (err) {
-    throw new Error(`Failed to parse Gemini response as JSON: ${(err as Error).message}`);
+    throw new Error(
+      `Failed to parse Gemini response as JSON: ${(err as Error).message}`
+    );
   }
 
-  if (ctx.wikiExtract && !parsed.sources?.includes('Wikipedia')) {
-    parsed.sources = [...(parsed.sources ?? []), 'Wikipedia'];
+  if (ctx.wikiExtract && !parsed.sources?.includes("Wikipedia")) {
+    parsed.sources = [...(parsed.sources ?? []), "Wikipedia"];
   }
 
   return {
@@ -116,4 +119,3 @@ export async function generateTourContent(ctx: PlaceContext): Promise<GeminiResu
     tokens: usage?.totalTokenCount ?? 0,
   };
 }
-

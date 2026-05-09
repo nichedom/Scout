@@ -13,7 +13,7 @@ export default function App() {
   const {
     phase, location, isLoading,
     setPhase, setLocation, setTourContent,
-    updateStep, resetPipeline, setIsLoading, setActiveTab,
+    updateStep, resetPipeline, setIsLoading, setActiveTab, setStreetViewFocus,
   } = useTourStore();
 
   const [globeIntroDone, setGlobeIntroDone] = useState(false);
@@ -51,6 +51,7 @@ export default function App() {
     setGlobeIntroDone(false);
     setStreetViewOk(false);
     setMapsInitError(false);
+    setStreetViewFocus(null);
     setLocation(loc);
     setPhase('exploring');
     setIsLoading(true);
@@ -117,15 +118,22 @@ export default function App() {
       )}
 
       <motion.div
-        className="absolute top-6 left-8 z-20 flex items-center gap-3 pointer-events-none"
+        className="absolute top-6 left-8 z-40 flex items-center gap-4 pointer-events-none pr-4"
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <div className="w-6 h-6 rounded-full bg-white/10" />
-        <span className="text-sm font-medium tracking-wide text-white/70 select-none">
-          Scout
-        </span>
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="w-6 h-6 rounded-full bg-white/10" />
+          <span className="text-sm font-medium tracking-wide text-white/70 select-none">
+            Scout
+          </span>
+        </div>
+        {phase === 'exploring' && (
+          <div className="min-w-0 w-full max-w-xs sm:max-w-sm pointer-events-auto">
+            <SearchBar onSelect={handleLocationSelect} compact />
+          </div>
+        )}
       </motion.div>
 
       <AnimatePresence>
@@ -148,7 +156,7 @@ export default function App() {
       </AnimatePresence>
 
       <AnimatePresence mode="wait">
-        {phase === 'landing' ? (
+        {phase === 'landing' && (
           <motion.div
             key="search-landing"
             className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 w-full max-w-2xl px-6 flex flex-col items-center gap-4"
@@ -165,17 +173,6 @@ export default function App() {
             >
               Skip search · try static Tokyo (Shibuya)
             </button>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="search-explore"
-            className="absolute top-20 z-40 left-6 right-[min(28rem,calc(100vw-1.5rem))] pointer-events-none"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <div className="pointer-events-auto">
-              <SearchBar onSelect={handleLocationSelect} compact />
-            </div>
           </motion.div>
         )}
       </AnimatePresence>

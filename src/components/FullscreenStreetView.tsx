@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useGoogleMaps } from '../context/GoogleMapsProvider';
+import { useTourStore } from '../store/useTourStore';
 import type { LocationData } from '../types';
 
 interface Props {
@@ -23,6 +24,9 @@ export default function FullscreenStreetView({
   onMapsInitError,
 }: Props) {
   const { isLoaded, loadError, apiKeyMissing } = useGoogleMaps();
+  const streetViewFocus = useTourStore((s) => s.streetViewFocus);
+  const centerLat = streetViewFocus?.lat ?? location.lat;
+  const centerLng = streetViewFocus?.lng ?? location.lng;
   const settledRef = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const panoRef = useRef<google.maps.StreetViewPanorama | null>(null);
@@ -42,7 +46,7 @@ export default function FullscreenStreetView({
       }
     }, 14_000);
     return () => window.clearTimeout(t);
-  }, [location.lat, location.lng, onPanoramaUnavailable]);
+  }, [centerLat, centerLng, onPanoramaUnavailable]);
 
   useEffect(() => {
     if (!globeHidden) return;
@@ -75,7 +79,7 @@ export default function FullscreenStreetView({
     };
 
     settledRef.current = false;
-    const center = { lat: location.lat, lng: location.lng };
+    const center = { lat: centerLat, lng: centerLng };
 
     const svc = new google.maps.StreetViewService();
     svc.getPanorama(
@@ -145,8 +149,8 @@ export default function FullscreenStreetView({
     isLoaded,
     apiKeyMissing,
     loadError,
-    location.lat,
-    location.lng,
+    centerLat,
+    centerLng,
     onPanoramaOk,
     onPanoramaUnavailable,
   ]);
