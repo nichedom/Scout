@@ -34,4 +34,40 @@ export interface TourContent {
   sources: string[];
 }
 
+export interface TripStop {
+  poi: PointOfInterest;
+  selected: boolean;
+}
+
+export interface TripLeg {
+  from: string;
+  to: string;
+  distanceKm: number;
+  durationMin: number;
+  mode: 'walking' | 'driving' | 'transit';
+}
+
+export interface TripCostBreakdown {
+  stopName: string;
+  entryCost: string;
+  mealBudget: string;
+  notes: string;
+}
+
+export interface TripPlan {
+  legs: TripLeg[];
+  costs: TripCostBreakdown[];
+  totalBudgetMin: string;
+  totalBudgetMax: string;
+  totalDurationMin: number;
+  tips: string;
+}
+
+export interface TripDestination {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+}
+
 export type AppPhase = 'landing' | 'exploring';

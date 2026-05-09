@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import tourRouter from './routes/tour';
+import tripRouter from './routes/trip';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -26,6 +27,7 @@ app.get('/api/health', (_, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 app.use('/api/tour', tourRouter);
+app.use('/api/trip', tripRouter);
 
 // 404 fallback
 app.use((_req, res) => {

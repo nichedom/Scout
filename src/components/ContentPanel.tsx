@@ -2,9 +2,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTourStore } from '../store/useTourStore';
 import TourPanel from './TourPanel';
 import PipelinePanel from './PipelinePanel';
+import TripPanel from './TripPanel';
 
 const TABS = [
   { id: 'tour' as const, label: 'Tour' },
+  { id: 'trip' as const, label: 'Trip' },
   { id: 'pipeline' as const, label: 'Pipeline' },
 ];
 
@@ -13,7 +15,7 @@ interface Props {
 }
 
 export default function ContentPanel({ onBack }: Props) {
-  const { location, activeTab, setActiveTab } = useTourStore();
+  const { location, activeTab, setActiveTab, tourContent } = useTourStore();
 
   if (!location) return null;
 
@@ -52,22 +54,27 @@ export default function ContentPanel({ onBack }: Props) {
         </div>
 
         <div className="flex gap-4 flex-wrap">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`
-                text-xs font-mono tracking-wide pb-1 border-b transition-colors duration-200
-                ${activeTab === tab.id
-                  ? 'text-white border-white/40'
-                  : 'text-white/25 border-transparent hover:text-white/50'
-                }
-              `}
-            >
-              {tab.label}
-            </button>
-          ))}
+          {TABS.map((tab) => {
+            const isDisabled = tab.id === 'trip' && !tourContent;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => !isDisabled && setActiveTab(tab.id)}
+                className={`
+                  text-xs font-mono tracking-wide pb-1 border-b transition-colors duration-200
+                  ${activeTab === tab.id
+                    ? 'text-white border-white/40'
+                    : isDisabled
+                      ? 'text-white/10 border-transparent cursor-not-allowed'
+                      : 'text-white/25 border-transparent hover:text-white/50'
+                  }
+                `}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -83,6 +90,18 @@ export default function ContentPanel({ onBack }: Props) {
               transition={{ duration: 0.2 }}
             >
               <TourPanel />
+            </motion.div>
+          )}
+          {activeTab === 'trip' && tourContent && (
+            <motion.div
+              key="trip"
+              className="h-full min-h-0 flex-1"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <TripPanel />
             </motion.div>
           )}
           {activeTab === 'pipeline' && (
