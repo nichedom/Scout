@@ -3,17 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --bg-void: #04080f;
-  --bg-surface: #0e1824;
-  --bg-card: #162236;
-  --border: rgba(0, 198, 255, 0.12);
-  --border-hover: rgba(245, 166, 35, 0.4);
-  --amber: #f5a623;
-  --cyan: #00c6ff;
-  --text-primary: #ddeeff;
-  --text-secondary: #6b8fa8;
-  --glow-amber: 0 0 24px rgba(245, 166, 35, 0.35);
-  --glow-cyan: 0 0 24px rgba(0, 198, 255, 0.25);
+  --bg-void: #0a0a0a;
+  --bg-surface: #141414;
+  --bg-card: #1a1a1a;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.16);
+  --amber: #e8a849;
+  --cyan: #5bb8f5;
+  --text-primary: #f0f0f0;
+  --text-secondary: #888;
 }
 
 * {
@@ -28,7 +26,7 @@ html, body, #root {
   overflow: hidden;
   background: var(--bg-void);
   color: var(--text-primary);
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Roboto', sans-serif;
 }
 
 /* Custom scrollbar for the panel */
@@ -45,44 +43,23 @@ html, body, #root {
 
 /* Glass card */
 .glass {
-  background: rgba(14, 24, 36, 0.85);
-  backdrop-filter: blur(12px);
+  background: rgba(20, 20, 20, 0.9);
   border: 1px solid var(--border);
 }
 
 .glass-hover:hover {
   border-color: var(--border-hover);
-  box-shadow: var(--glow-amber);
 }
 
 /* Gradient text */
-.gradient-text {
-  background: linear-gradient(135deg, #f5a623 0%, #00c6ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* Scan line overlay (subtle atmosphere) */
-.scanlines::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.03) 2px,
-    rgba(0, 0, 0, 0.03) 4px
-  );
-  pointer-events: none;
-  z-index: 1;
+.visit-text {
+  color: var(--text-primary);
 }
 
 /* Pipeline connector */
 .pipeline-line {
   width: 2px;
-  background: linear-gradient(to bottom, var(--cyan), transparent);
+  background: rgba(0, 198, 255, 0.2);
   transition: background 0.5s;
 }
 

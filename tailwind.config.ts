@@ -22,9 +22,9 @@ export default {
         },
       },
       fontFamily: {
-        display: ['"Playfair Display"', 'serif'],
-        body: ['"DM Sans"', 'sans-serif'],
-        mono: ['"DM Mono"', 'monospace'],
+        display: ['Roboto', 'sans-serif'],
+        body: ['Roboto', 'sans-serif'],
+        mono: ['"Roboto Mono"', 'monospace'],
       },
       animation: {
         'pulse-slow': 'pulse 3s ease-in-out infinite',

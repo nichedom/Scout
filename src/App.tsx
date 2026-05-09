@@ -5,6 +5,7 @@ import ContentPanel from './components/ContentPanel';
 import { useTourStore } from './store/useTourStore';
 import { generateTour } from './services/api';
 import type { LocationData } from './types';
+import { DEMO_LOCATION_TOKYO_SHIBUYA } from './constants/demoLocation';
 
 export default function App() {
   const {
@@ -35,7 +36,7 @@ export default function App() {
   };
 
   return (
-    <div className="relative w-full h-full overflow-hidden scanlines" style={{ background: 'var(--bg-void)' }}>
+    <div className="relative w-full h-full overflow-hidden" style={{ background: 'var(--bg-void)' }}>
 
       {/* Globe — always visible, shrinks left on explore */}
       <motion.div
@@ -53,10 +54,8 @@ export default function App() {
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <div className="w-8 h-8 rounded-full border border-amber-400/60 flex items-center justify-center">
-          <span className="text-sm">🌍</span>
-        </div>
-        <span className="font-display text-lg font-bold tracking-wide text-white/90">
+        <div className="w-6 h-6 rounded-full bg-white/10" />
+        <span className="text-sm font-medium tracking-wide text-white/70">
           Scout
         </span>
       </motion.div>
@@ -70,11 +69,11 @@ export default function App() {
             animate={{ opacity: 1, transition: { delay: 0.8 } }}
             exit={{ opacity: 0, transition: { duration: 0.3 } }}
           >
-            <h1 className="font-display text-6xl font-bold text-white/90 mb-4 text-center leading-tight">
+            <h1 className="text-5xl font-light text-white/90 mb-4 text-center leading-tight">
               Every place<br />
-              <span className="gradient-text">has a story.</span>
+              <span className="visit-text font-normal">has a story.</span>
             </h1>
-            <p className="font-body text-white/40 text-base tracking-[0.25em] uppercase mt-2">
+            <p className="text-white/30 text-sm tracking-widest uppercase mt-2">
               Drop a pin · Hear the story
             </p>
           </motion.div>
@@ -86,12 +85,20 @@ export default function App() {
         {phase === 'landing' ? (
           <motion.div
             key="search-landing"
-            className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 w-full max-w-2xl px-6"
+            className="absolute bottom-24 left-1/2 -translate-x-1/2 z-20 w-full max-w-2xl px-6 flex flex-col items-center gap-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0, transition: { delay: 1 } }}
             exit={{ opacity: 0, y: -10, transition: { duration: 0.25 } }}
           >
             <SearchBar onSelect={handleLocationSelect} />
+            <button
+              type="button"
+              onClick={() => handleLocationSelect(DEMO_LOCATION_TOKYO_SHIBUYA)}
+              className="glass rounded-xl px-5 py-2.5 text-xs font-mono text-white/55 hover:text-amber-400/95 hover:border-amber-400/25 transition-colors"
+              style={{ borderColor: 'var(--border)' }}
+            >
+              Skip search · try static Tokyo (Shibuya)
+            </button>
           </motion.div>
         ) : (
           <motion.div
@@ -116,9 +123,9 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <div className="flex items-center gap-2 glass rounded-full px-4 py-2">
-              <div className="w-2 h-2 rounded-full bg-amber-400 animate-ping-slow" />
-              <span className="text-xs text-white/60 font-mono">Researching…</span>
+            <div className="flex items-center gap-2 rounded-full px-4 py-2" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              <span className="text-xs text-white/50 font-mono">Researching…</span>
             </div>
           </motion.div>
         )}

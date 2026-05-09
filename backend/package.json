@@ -2,7 +2,13 @@
   "name": "scout-backend",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
+    "predev": "node ../scripts/check-node.js",
+    "prestart": "node ../scripts/check-node.js",
+    "prebuild": "node ../scripts/check-node.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js"

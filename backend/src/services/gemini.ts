@@ -1,20 +1,34 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import type { TourContent } from '../types';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import type { TourContent } from "../types";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+let geminiModelSingleton: ReturnType<GoogleGenerativeAI["getGenerativeModel"]> | null = null;
 
-const model = genAI.getGenerativeModel({
-  model: 'gemini-2.0-flash',
-  generationConfig: {
-    responseMimeType: 'application/json',
-    temperature: 0.85,
-    maxOutputTokens: 2048,
-  },
-  systemInstruction: `You are an expert travel guide, historian, and cultural analyst with the voice of a passionate storyteller.
+function getGeminiModel(): ReturnType<GoogleGenerativeAI["getGenerativeModel"]> {
+  if (geminiModelSingleton) return geminiModelSingleton;
+
+  const key = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, "");
+  if (!key) {
+    throw new Error(
+      "GEMINI_API_KEY is missing in backend/.env — tours need a Gemini API key."
+    );
+  }
+
+  const genAI = new GoogleGenerativeAI(key);
+  geminiModelSingleton = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    generationConfig: {
+      responseMimeType: "application/json",
+      temperature: 0.85,
+      maxOutputTokens: 4096,
+    },
+    systemInstruction: `You are an expert travel guide, historian, and cultural analyst with the voice of a passionate storyteller.
 Your goal is to craft vivid, engaging, and educational narratives about places — mixing history, culture, local insights, and atmosphere.
 Adapt your tone: solemn for historic sites, animated for lively districts, poetic for natural landscapes.
 Always respond with valid JSON matching the exact schema provided. No markdown, no explanation — only the JSON object.`,
-});
+  });
+
+  return geminiModelSingleton;
+}
 
 interface PlaceContext {
   name: string;
@@ -32,10 +46,10 @@ interface GeminiResult {
 }
 
 function buildPrompt(ctx: PlaceContext): string {
-  const typeHint = ctx.types?.join(', ') || 'unknown type';
+  const typeHint = ctx.types?.join(", ") || "unknown type";
   const wikiSection = ctx.wikiExtract
     ? `\n\nWikipedia context:\n"${ctx.wikiExtract}"`
-    : '';
+    : "";
 
   return `You are creating a virtual tour guide narration for the following location:
 
@@ -71,11 +85,9 @@ The mustSee array should have 3-5 items specific to this location. Make the cont
 }
 
 function extractJson(text: string): string {
-  // Try to extract JSON from markdown code blocks
   const mdMatch = text.match(/```(?:json)?\n?([\s\S]+?)\n?```/);
   if (mdMatch) return mdMatch[1].trim();
 
-  // Try to find raw JSON object
   const jsonMatch = text.match(/\{[\s\S]+\}/);
   if (jsonMatch) return jsonMatch[0];
 
@@ -83,6 +95,7 @@ function extractJson(text: string): string {
 }
 
 export async function generateTourContent(ctx: PlaceContext): Promise<GeminiResult> {
+  const model = getGeminiModel();
   const prompt = buildPrompt(ctx);
 
   const result = await model.generateContent(prompt);
@@ -95,16 +108,17 @@ export async function generateTourContent(ctx: PlaceContext): Promise<GeminiResu
   try {
     parsed = JSON.parse(extractJson(text)) as TourContent;
   } catch (err) {
-    throw new Error(`Failed to parse Gemini response as JSON: ${(err as Error).message}`);
+    throw new Error(
+      `Failed to parse Gemini response as JSON: ${(err as Error).message}`
+    );
   }
 
-  // Ensure sources include Wikipedia if we had it
-  if (ctx.wikiExtract && !parsed.sources?.includes('Wikipedia')) {
-    parsed.sources = [...(parsed.sources ?? []), 'Wikipedia'];
+  if (ctx.wikiExtract && !parsed.sources?.includes("Wikipedia")) {
+    parsed.sources = [...(parsed.sources ?? []), "Wikipedia"];
   }
 
   return {
     tour: parsed,
-    tokens: (usage?.totalTokenCount ?? 0),
+    tokens: usage?.totalTokenCount ?? 0,
   };
 }
