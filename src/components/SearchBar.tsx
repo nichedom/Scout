@@ -2,15 +2,57 @@ import { useEffect, useRef, useState } from 'react';
 import { useGoogleMaps } from '../context/GoogleMapsProvider';
 import type { LocationData } from '../types';
 
-const FETCH_PLACE_FIELDS = ['id', 'location', 'displayName', 'formattedAddress', 'types'] as const;
+const FETCH_PLACE_FIELDS = [
+  'id',
+  'location',
+  'viewport',
+  'displayName',
+  'formattedAddress',
+  'types',
+] as const;
 
-function latLngToCoords(loc: google.maps.LatLng | google.maps.LatLngLiteral): { lat: number; lng: number } {
-  const asLit = loc as google.maps.LatLngLiteral;
-  if (typeof asLit.lat === 'number' && typeof asLit.lng === 'number') {
-    return { lat: asLit.lat, lng: asLit.lng };
+/** gmp-select often puts payloads on `event.detail`; older handlers used top-level props. */
+function placeFromAutocompleteEvent(event: Event): google.maps.places.Place | null {
+  const e = event as CustomEvent<{
+    placePrediction?: google.maps.places.PlacePrediction;
+    place?: google.maps.places.Place;
+  }>;
+  const d = e.detail && typeof e.detail === 'object' ? e.detail : undefined;
+  const top = e as unknown as { place?: google.maps.places.Place; placePrediction?: google.maps.places.PlacePrediction };
+  const place = top.place ?? d?.place;
+  const pred = top.placePrediction ?? d?.placePrediction;
+  if (place) return place;
+  if (pred) return pred.toPlace();
+  return null;
+}
+
+function extractCoords(
+  loc: google.maps.LatLng | google.maps.LatLngLiteral | null | undefined
+): { lat: number; lng: number } | null {
+  if (loc == null) return null;
+  if (typeof (loc as google.maps.LatLng).lat === 'function') {
+    const ll = loc as google.maps.LatLng;
+    return { lat: ll.lat(), lng: ll.lng() };
   }
-  const ll = loc as google.maps.LatLng;
-  return { lat: ll.lat(), lng: ll.lng() };
+  const lit = loc as google.maps.LatLngLiteral & { lat?: unknown; lng?: unknown };
+  const lat = typeof lit.lat === 'number' ? lit.lat : Number(lit.lat);
+  const lng = typeof lit.lng === 'number' ? lit.lng : Number(lit.lng);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return { lat, lng };
+  }
+  return null;
+}
+
+function coordsFromPlace(place: google.maps.places.Place): { lat: number; lng: number } | null {
+  const fromLoc = extractCoords(place.location ?? undefined);
+  if (fromLoc && Math.abs(fromLoc.lat) <= 90 && Math.abs(fromLoc.lng) <= 180) {
+    return fromLoc;
+  }
+  const vp = place.viewport;
+  if (vp) {
+    return extractCoords(vp.getCenter());
+  }
+  return null;
 }
 
 interface Props {
@@ -62,20 +104,22 @@ export default function SearchBar({ onSelect, compact = false }: Props) {
 
         pac.style.width = '100%';
         pac.style.boxSizing = 'border-box';
+        pac.style.borderRadius = '12px';
+        pac.style.position = 'relative';
+        pac.style.zIndex = '50';
+        // Host is transparent so our outer `.glass` frame is the only chrome (avoids nested boxes + double icon with our SVG).
+        pac.style.backgroundColor = 'transparent';
+        pac.style.border = 'none';
+        pac.style.boxShadow = 'none';
 
         const onSelectPlace = async (event: Event) => {
-          const detail = event as unknown as {
-            placePrediction?: google.maps.places.PlacePrediction;
-            place?: google.maps.places.Place;
-          };
-
-          let place: google.maps.places.Place | undefined;
-          if (detail.placePrediction) {
-            place = detail.placePrediction.toPlace();
-          } else if (detail.place) {
-            place = detail.place;
+          const place = placeFromAutocompleteEvent(event);
+          if (!place) {
+            if (import.meta.env.DEV) {
+              console.warn('[SearchBar] gmp-select: no place or placePrediction on event', event);
+            }
+            return;
           }
-          if (!place) return;
 
           try {
             await place.fetchFields({ fields: [...FETCH_PLACE_FIELDS] });
@@ -84,15 +128,22 @@ export default function SearchBar({ onSelect, compact = false }: Props) {
             return;
           }
 
-          const loc = place.location;
-          if (!loc) return;
+          const coords = coordsFromPlace(place);
+          if (!coords) {
+            if (import.meta.env.DEV) {
+              console.warn('[SearchBar] No coordinates after fetchFields', {
+                hasLocation: place.location != null,
+                hasViewport: place.viewport != null,
+              });
+            }
+            return;
+          }
 
-          const { lat, lng } = latLngToCoords(loc);
           onSelectRef.current({
             name: place.displayName ?? '',
             address: place.formattedAddress ?? '',
-            lat,
-            lng,
+            lat: coords.lat,
+            lng: coords.lng,
             placeId: place.id,
             types: place.types,
           });
@@ -164,27 +215,14 @@ export default function SearchBar({ onSelect, compact = false }: Props) {
   return (
     <div
       className={`relative transition-all duration-300 ${focused ? 'scale-[1.01]' : ''}`}
+      style={{ zIndex: 1 }}
     >
-      <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none z-10">
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke={focused ? 'var(--amber)' : 'rgba(107,143,168,0.7)'}
-          viewBox="0 0 24 24"
-          strokeWidth={2}
-        >
-          <circle cx="11" cy="11" r="8" />
-          <path d="m21 21-4.35-4.35" />
-        </svg>
-      </div>
-
       <div className="relative w-full">
         <div
           ref={containerRef}
           className={`
-            w-full glass rounded-xl overflow-hidden
+            w-full glass rounded-xl overflow-visible
             ${compact ? 'min-h-[40px]' : 'min-h-[56px]'}
-            ${widgetReady ? 'pl-10' : ''}
           `}
           style={{
             borderColor: focused ? 'var(--amber)' : 'var(--border)',

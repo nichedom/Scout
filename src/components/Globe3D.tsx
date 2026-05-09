@@ -1,6 +1,6 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Stars, useTexture, OrbitControls } from '@react-three/drei';
-import { Suspense, useRef, useState, useEffect } from 'react';
+import { Suspense, useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import type { LocationData } from '../types';
 
@@ -116,30 +116,67 @@ function LocationPin({ lat, lng }: { lat: number; lng: number }) {
   );
 }
 
-function CameraController({ targetLat, targetLng, active }: { targetLat?: number; targetLng?: number; active: boolean }) {
+function CameraController({
+  targetLat,
+  targetLng,
+  active,
+  onIntroComplete,
+}: {
+  targetLat?: number;
+  targetLng?: number;
+  active: boolean;
+  onIntroComplete?: () => void;
+}) {
   const { camera } = useThree();
-  const targetPosRef = useRef<THREE.Vector3 | null>(null);
-  const startRef = useRef<THREE.Vector3 | null>(null);
-  const progressRef = useRef(1);
+  const pinDirRef = useRef(new THREE.Vector3());
+  const startDirRef = useRef(new THREE.Vector3());
+  const phaseRef = useRef<'idle' | 'orient' | 'zoom' | 'done'>('idle');
+  const progressRef = useRef(0);
+  const reportedRef = useRef(false);
 
   useEffect(() => {
     if (active && targetLat !== undefined && targetLng !== undefined) {
-      const targetOnSphere = latLngToVec3(targetLat, targetLng, 6.5);
-      targetPosRef.current = targetOnSphere;
-      startRef.current = camera.position.clone();
+      pinDirRef.current.copy(latLngToVec3(targetLat, targetLng, 1).normalize());
+      startDirRef.current.copy(camera.position.clone().normalize());
+      phaseRef.current = 'orient';
       progressRef.current = 0;
+      reportedRef.current = false;
+    } else {
+      phaseRef.current = 'idle';
     }
-  }, [active, targetLat, targetLng]);
+  }, [active, targetLat, targetLng, camera]);
 
   useFrame((_, delta) => {
-    if (progressRef.current < 1 && targetPosRef.current && startRef.current) {
-      progressRef.current = Math.min(1, progressRef.current + delta * 1.2);
+    if (phaseRef.current === 'idle' || phaseRef.current === 'done') return;
+
+    if (phaseRef.current === 'orient') {
+      progressRef.current = Math.min(1, progressRef.current + delta * 1.15);
       const t = 1 - Math.pow(1 - progressRef.current, 3);
-      const start = startRef.current.clone().normalize();
-      const end = targetPosRef.current.clone().normalize();
-      const interpolated = new THREE.Vector3().lerpVectors(start, end, t).normalize().multiplyScalar(6.5);
-      camera.position.copy(interpolated);
+      const dir = new THREE.Vector3()
+        .lerpVectors(startDirRef.current, pinDirRef.current, t)
+        .normalize();
+      camera.position.copy(dir.multiplyScalar(6.5));
       camera.lookAt(0, 0, 0);
+      if (progressRef.current >= 1) {
+        phaseRef.current = 'zoom';
+        progressRef.current = 0;
+      }
+      return;
+    }
+
+    if (phaseRef.current === 'zoom') {
+      progressRef.current = Math.min(1, progressRef.current + delta * 0.9);
+      const t = 1 - Math.pow(1 - progressRef.current, 2);
+      const radius = THREE.MathUtils.lerp(6.5, 2.52, t);
+      camera.position.copy(pinDirRef.current.clone().multiplyScalar(radius));
+      camera.lookAt(0, 0, 0);
+      if (progressRef.current >= 1) {
+        phaseRef.current = 'done';
+        if (!reportedRef.current) {
+          reportedRef.current = true;
+          onIntroComplete?.();
+        }
+      }
     }
   });
 
@@ -157,16 +194,26 @@ function FallbackSphere() {
 
 interface Props {
   selectedLocation: LocationData | null;
+  onIntroAnimationComplete?: () => void;
+  /** When set (e.g. Street View visible), globe must not intercept pointer events. */
+  pointerCaptureDisabled?: boolean;
 }
 
-export default function Globe3D({ selectedLocation }: Props) {
+export default function Globe3D({
+  selectedLocation,
+  onIntroAnimationComplete,
+  pointerCaptureDisabled = false,
+}: Props) {
   const hasLocation = selectedLocation !== null;
 
   return (
     <Canvas
       camera={{ position: [0, 0, 6.5], fov: 42 }}
       gl={{ antialias: true, alpha: false }}
-      style={{ background: 'transparent' }}
+      style={{
+        background: 'transparent',
+        pointerEvents: pointerCaptureDisabled ? 'none' : 'auto',
+      }}
     >
       <color attach="background" args={['#0a0a0a']} />
 
@@ -189,10 +236,12 @@ export default function Globe3D({ selectedLocation }: Props) {
           targetLat={selectedLocation!.lat}
           targetLng={selectedLocation!.lng}
           active={hasLocation}
+          onIntroComplete={onIntroAnimationComplete}
         />
       )}
 
       <OrbitControls
+        enabled={!pointerCaptureDisabled}
         enableZoom={false}
         enablePan={false}
         rotateSpeed={0.4}

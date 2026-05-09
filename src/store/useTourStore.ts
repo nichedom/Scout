@@ -8,13 +8,17 @@ const INITIAL_STEPS: PipelineStep[] = [
   { id: 'gemini', icon: '🧠', label: 'Generating AI narrative', status: 'idle' },
 ];
 
+export type StreetViewFocus = { lat: number; lng: number };
+
 interface TourStore {
   phase: AppPhase;
   location: LocationData | null;
   tourContent: TourContent | null;
   pipeline: PipelineStep[];
   isLoading: boolean;
-  activeTab: 'tour' | 'map' | 'pipeline';
+  activeTab: 'tour' | 'pipeline';
+  /** When set, Street View centers here instead of the main selected location. */
+  streetViewFocus: StreetViewFocus | null;
 
   setPhase: (phase: AppPhase) => void;
   setLocation: (loc: LocationData) => void;
@@ -22,7 +26,8 @@ interface TourStore {
   updateStep: (id: string, status: PipelineStep['status'], detail?: string) => void;
   resetPipeline: () => void;
   setIsLoading: (v: boolean) => void;
-  setActiveTab: (tab: 'tour' | 'map' | 'pipeline') => void;
+  setActiveTab: (tab: 'tour' | 'pipeline') => void;
+  setStreetViewFocus: (focus: StreetViewFocus | null) => void;
   reset: () => void;
 }
 
@@ -33,6 +38,7 @@ export const useTourStore = create<TourStore>((set) => ({
   pipeline: INITIAL_STEPS,
   isLoading: false,
   activeTab: 'tour',
+  streetViewFocus: null,
 
   setPhase: (phase) => set({ phase }),
   setLocation: (location) => set({ location }),
@@ -46,6 +52,7 @@ export const useTourStore = create<TourStore>((set) => ({
   resetPipeline: () => set({ pipeline: INITIAL_STEPS.map((s) => ({ ...s, status: 'idle' as const })) }),
   setIsLoading: (isLoading) => set({ isLoading }),
   setActiveTab: (activeTab) => set({ activeTab }),
+  setStreetViewFocus: (streetViewFocus) => set({ streetViewFocus }),
   reset: () =>
     set({
       phase: 'landing',
@@ -54,5 +61,6 @@ export const useTourStore = create<TourStore>((set) => ({
       pipeline: INITIAL_STEPS,
       isLoading: false,
       activeTab: 'tour',
+      streetViewFocus: null,
     }),
 }));
