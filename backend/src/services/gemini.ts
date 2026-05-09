@@ -1,23 +1,21 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import type { TourContent } from "../types";
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import type { TourContent } from '../types';
 
-let geminiModelSingleton: ReturnType<GoogleGenerativeAI["getGenerativeModel"]> | null = null;
+let geminiModelSingleton: ReturnType<GoogleGenerativeAI['getGenerativeModel']> | null = null;
 
-function getGeminiModel(): ReturnType<GoogleGenerativeAI["getGenerativeModel"]> {
+function getGeminiModel(): ReturnType<GoogleGenerativeAI['getGenerativeModel']> {
   if (geminiModelSingleton) return geminiModelSingleton;
 
-  const key = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, "");
+  const key = process.env.GEMINI_API_KEY?.trim().replace(/^["']|["']$/g, '');
   if (!key) {
-    throw new Error(
-      "GEMINI_API_KEY is missing in backend/.env — tours need a Gemini API key."
-    );
+    throw new Error('GEMINI_API_KEY is missing in backend/.env — tours need a Gemini API key.');
   }
 
   const genAI = new GoogleGenerativeAI(key);
   geminiModelSingleton = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: 'gemini-3.1-flash-lite',
     generationConfig: {
-      responseMimeType: "application/json",
+      responseMimeType: 'application/json',
       temperature: 0.85,
       maxOutputTokens: 4096,
     },
@@ -46,10 +44,8 @@ interface GeminiResult {
 }
 
 function buildPrompt(ctx: PlaceContext): string {
-  const typeHint = ctx.types?.join(", ") || "unknown type";
-  const wikiSection = ctx.wikiExtract
-    ? `\n\nWikipedia context:\n"${ctx.wikiExtract}"`
-    : "";
+  const typeHint = ctx.types?.join(', ') || 'unknown type';
+  const wikiSection = ctx.wikiExtract ? `\n\nWikipedia context:\n"${ctx.wikiExtract}"` : '';
 
   return `You are creating a virtual tour guide narration for the following location:
 
@@ -108,13 +104,11 @@ export async function generateTourContent(ctx: PlaceContext): Promise<GeminiResu
   try {
     parsed = JSON.parse(extractJson(text)) as TourContent;
   } catch (err) {
-    throw new Error(
-      `Failed to parse Gemini response as JSON: ${(err as Error).message}`
-    );
+    throw new Error(`Failed to parse Gemini response as JSON: ${(err as Error).message}`);
   }
 
-  if (ctx.wikiExtract && !parsed.sources?.includes("Wikipedia")) {
-    parsed.sources = [...(parsed.sources ?? []), "Wikipedia"];
+  if (ctx.wikiExtract && !parsed.sources?.includes('Wikipedia')) {
+    parsed.sources = [...(parsed.sources ?? []), 'Wikipedia'];
   }
 
   return {
@@ -122,3 +116,4 @@ export async function generateTourContent(ctx: PlaceContext): Promise<GeminiResu
     tokens: usage?.totalTokenCount ?? 0,
   };
 }
+

@@ -1,7 +1,9 @@
 import { AnimatePresence, motion } from 'framer-motion';
+import { useCallback, useEffect, useState } from 'react';
+import ContentPanel from './components/ContentPanel';
+import FullscreenStreetView from './components/FullscreenStreetView';
 import Globe3D from './components/Globe3D';
 import SearchBar from './components/SearchBar';
-import ContentPanel from './components/ContentPanel';
 import { useTourStore } from './store/useTourStore';
 import { generateTour } from './services/api';
 import type { LocationData } from './types';
@@ -14,7 +16,41 @@ export default function App() {
     updateStep, resetPipeline, setIsLoading, setActiveTab,
   } = useTourStore();
 
+  const [globeIntroDone, setGlobeIntroDone] = useState(false);
+  const [streetViewOk, setStreetViewOk] = useState(false);
+  const [mapsInitError, setMapsInitError] = useState(false);
+
+  const revealStreetView = phase === 'exploring' && globeIntroDone && streetViewOk;
+  const hideGlobe = revealStreetView || mapsInitError;
+
+  useEffect(() => {
+    if (phase === 'landing') {
+      setGlobeIntroDone(false);
+      setStreetViewOk(false);
+      setMapsInitError(false);
+    }
+  }, [phase]);
+
+  const handleGlobeIntroDone = useCallback(() => {
+    setGlobeIntroDone(true);
+  }, []);
+
+  const handlePanoramaOk = useCallback(() => {
+    setStreetViewOk(true);
+  }, []);
+
+  const handlePanoramaUnavailable = useCallback(() => {
+    setStreetViewOk(false);
+  }, []);
+
+  const handleMapsInitError = useCallback(() => {
+    setMapsInitError(true);
+  }, []);
+
   const handleLocationSelect = async (loc: LocationData) => {
+    setGlobeIntroDone(false);
+    setStreetViewOk(false);
+    setMapsInitError(false);
     setLocation(loc);
     setPhase('exploring');
     setIsLoading(true);
@@ -35,32 +71,57 @@ export default function App() {
     }
   };
 
+  const mapPlaceKey = location
+    ? `${location.lat.toFixed(5)},${location.lng.toFixed(5)},${location.placeId ?? ''}`
+    : '';
+
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: 'var(--bg-void)' }}>
 
-      {/* Globe — always visible, shrinks left on explore */}
+      {phase === 'exploring' && location && (
+        <div
+          className="absolute inset-0 z-[1]"
+          style={{ pointerEvents: hideGlobe ? 'auto' : 'none' }}
+        >
+          <FullscreenStreetView
+            key={mapPlaceKey}
+            location={location}
+            onPanoramaOk={handlePanoramaOk}
+            onPanoramaUnavailable={handlePanoramaUnavailable}
+            onMapsInitError={handleMapsInitError}
+          />
+        </div>
+      )}
+
       <motion.div
-        className="absolute inset-0 z-0"
-        animate={{ right: phase === 'exploring' ? '42%' : '0%' }}
-        transition={{ type: 'spring', stiffness: 80, damping: 18 }}
+        className={`absolute inset-0 ${phase === 'exploring' && location ? 'z-[2]' : 'z-[1]'}`}
+        initial={false}
+        animate={{
+          opacity: hideGlobe ? 0 : 1,
+          scale: hideGlobe ? 1.06 : 1,
+        }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        style={{ pointerEvents: hideGlobe ? 'none' : 'auto' }}
       >
-        <Globe3D selectedLocation={phase === 'exploring' ? location : null} />
+        <Globe3D
+          selectedLocation={phase === 'exploring' ? location : null}
+          onIntroAnimationComplete={phase === 'exploring' ? handleGlobeIntroDone : undefined}
+          pointerCaptureDisabled={hideGlobe}
+        />
       </motion.div>
 
-      {/* Branding */}
       <motion.div
-        className="absolute top-6 left-8 z-20 flex items-center gap-3"
+        className="absolute top-6 left-8 z-20 flex items-center gap-3 pointer-events-none"
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.4 }}
       >
         <div className="w-6 h-6 rounded-full bg-white/10" />
-        <span className="text-sm font-medium tracking-wide text-white/70">
+        <span className="text-sm font-medium tracking-wide text-white/70 select-none">
           Scout
         </span>
       </motion.div>
 
-      {/* Landing hero text */}
       <AnimatePresence>
         {phase === 'landing' && (
           <motion.div
@@ -80,7 +141,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Search bar — centered on landing, compact top-left on explore */}
       <AnimatePresence mode="wait">
         {phase === 'landing' ? (
           <motion.div
@@ -103,27 +163,26 @@ export default function App() {
         ) : (
           <motion.div
             key="search-explore"
-            className="absolute top-6 z-20"
-            style={{ left: '5%', right: '44%' }}
+            className="absolute top-20 z-40 left-6 right-[min(28rem,calc(100vw-1.5rem))] pointer-events-none"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
-            <SearchBar onSelect={handleLocationSelect} compact />
+            <div className="pointer-events-auto">
+              <SearchBar onSelect={handleLocationSelect} compact />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Loading pulse overlay on globe */}
       <AnimatePresence>
         {isLoading && (
           <motion.div
-            className="absolute inset-y-0 left-0 z-10 flex items-end pb-8 pl-8"
-            style={{ right: phase === 'exploring' ? '42%' : '0' }}
+            className="absolute inset-x-0 bottom-0 z-[15] flex items-end pb-8 pl-8 pointer-events-none"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <div className="flex items-center gap-2 rounded-full px-4 py-2" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+            <div className="flex items-center gap-2 rounded-full px-4 py-2 pointer-events-auto" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
               <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
               <span className="text-xs text-white/50 font-mono">Researching…</span>
             </div>
@@ -131,20 +190,20 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Content panel */}
       <AnimatePresence>
         {phase === 'exploring' && (
           <motion.div
-            className="absolute top-0 right-0 z-10 h-full"
-            style={{ width: '42%' }}
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', stiffness: 80, damping: 18 }}
+            className="absolute z-30 top-20 bottom-8 right-6 w-full max-w-md pointer-events-none"
+            initial={{ opacity: 0, x: 24, scale: 0.98 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 40 }}
+            transition={{ type: 'spring', stiffness: 120, damping: 20 }}
           >
-            <ContentPanel onBack={() => {
-              useTourStore.getState().reset();
-            }} />
+            <div className="h-full pointer-events-auto min-h-0">
+              <ContentPanel onBack={() => {
+                useTourStore.getState().reset();
+              }} />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

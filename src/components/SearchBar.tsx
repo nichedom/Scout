@@ -62,18 +62,21 @@ export default function SearchBar({ onSelect, compact = false }: Props) {
 
         pac.style.width = '100%';
         pac.style.boxSizing = 'border-box';
+        pac.style.borderRadius = '12px';
+        pac.style.position = 'relative';
+        pac.style.zIndex = '50';
 
         const onSelectPlace = async (event: Event) => {
-          const detail = event as unknown as {
-            placePrediction?: google.maps.places.PlacePrediction;
+          const ev = event as unknown as {
             place?: google.maps.places.Place;
+            placePrediction?: google.maps.places.PlacePrediction;
           };
 
           let place: google.maps.places.Place | undefined;
-          if (detail.placePrediction) {
-            place = detail.placePrediction.toPlace();
-          } else if (detail.place) {
-            place = detail.place;
+          if (ev.place) {
+            place = ev.place;
+          } else if (ev.placePrediction) {
+            place = ev.placePrediction.toPlace();
           }
           if (!place) return;
 
@@ -164,6 +167,7 @@ export default function SearchBar({ onSelect, compact = false }: Props) {
   return (
     <div
       className={`relative transition-all duration-300 ${focused ? 'scale-[1.01]' : ''}`}
+      style={{ zIndex: 1 }}
     >
       <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none z-10">
         <svg
@@ -182,7 +186,7 @@ export default function SearchBar({ onSelect, compact = false }: Props) {
         <div
           ref={containerRef}
           className={`
-            w-full glass rounded-xl overflow-hidden
+            w-full glass rounded-xl overflow-visible
             ${compact ? 'min-h-[40px]' : 'min-h-[56px]'}
             ${widgetReady ? 'pl-10' : ''}
           `}

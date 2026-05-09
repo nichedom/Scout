@@ -14,7 +14,7 @@ interface TourStore {
   tourContent: TourContent | null;
   pipeline: PipelineStep[];
   isLoading: boolean;
-  activeTab: 'tour' | 'map' | 'pipeline';
+  activeTab: 'tour' | 'pipeline';
 
   setPhase: (phase: AppPhase) => void;
   setLocation: (loc: LocationData) => void;
@@ -22,7 +22,7 @@ interface TourStore {
   updateStep: (id: string, status: PipelineStep['status'], detail?: string) => void;
   resetPipeline: () => void;
   setIsLoading: (v: boolean) => void;
-  setActiveTab: (tab: 'tour' | 'map' | 'pipeline') => void;
+  setActiveTab: (tab: 'tour' | 'pipeline') => void;
   reset: () => void;
 }
 
