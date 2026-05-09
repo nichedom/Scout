@@ -4,15 +4,15 @@ import type { PipelineStep } from '../types';
 
 function StepRow({ step, isLast }: { step: PipelineStep; isLast: boolean }) {
   const statusColor = {
-    idle: 'rgba(255,255,255,0.15)',
-    running: 'var(--cyan)',
+    idle: 'rgba(255,255,255,0.12)',
+    running: 'rgba(255,255,255,0.4)',
     done: '#4ade80',
     error: '#f87171',
   }[step.status];
 
   const statusBg = {
-    idle: 'rgba(255,255,255,0.03)',
-    running: 'rgba(0,198,255,0.06)',
+    idle: 'rgba(255,255,255,0.02)',
+    running: 'rgba(255,255,255,0.04)',
     done: 'rgba(74,222,128,0.06)',
     error: 'rgba(248,113,113,0.06)',
   }[step.status];
@@ -22,18 +22,13 @@ function StepRow({ step, isLast }: { step: PipelineStep; isLast: boolean }) {
       {/* Left: connector line + icon */}
       <div className="flex flex-col items-center">
         <motion.div
-          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 text-lg relative"
+          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-sm"
           style={{ background: statusBg, border: `1px solid ${statusColor}30` }}
-          animate={step.status === 'running' ? { boxShadow: [`0 0 0px ${statusColor}`, `0 0 12px ${statusColor}`, `0 0 0px ${statusColor}`] } : {}}
-          transition={{ duration: 1.2, repeat: Infinity }}
         >
           <span>{step.icon}</span>
-          {step.status === 'running' && (
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
-          )}
         </motion.div>
         {!isLast && (
-          <div className="w-px flex-1 my-1" style={{ background: step.status === 'done' ? 'rgba(74,222,128,0.3)' : 'rgba(255,255,255,0.06)' }} />
+          <div className="w-px flex-1 my-1" style={{ background: step.status === 'done' ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.05)' }} />
         )}
       </div>
 
@@ -103,7 +98,7 @@ export default function PipelinePanel() {
 
       {/* Data sources info */}
       <div
-        className="mt-6 p-4 rounded-xl text-xs font-mono space-y-2"
+        className="mt-6 p-4 rounded-lg text-xs font-mono space-y-2"
         style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}
       >
         <p className="text-white/30 text-[10px] uppercase tracking-widest mb-3">Data sources</p>

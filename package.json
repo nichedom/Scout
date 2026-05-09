@@ -10,7 +10,6 @@
     "prestart": "node scripts/check-node.js",
     "prebackend": "node scripts/check-node.js",
     "dev": "vite",
-    "demo:maps": "vite --open /maps-demo.html",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -18,17 +17,18 @@
     "start": "concurrently \"npm run dev\" \"npm run backend\""
   },
   "dependencies": {
-    "@googlemaps/js-api-loader": "^1.16.10",
-    "@react-google-maps/api": "^2.20.3",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.17.14",
     "framer-motion": "^11.15.0",
+    "leaflet": "^1.9.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-leaflet": "^4.2.1",
     "three": "^0.170.0",
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@types/leaflet": "^1.9.21",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@types/three": "^0.170.0",

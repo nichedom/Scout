@@ -1,55 +1,38 @@
-import { useState } from 'react';
-import { GoogleMap, StreetViewPanorama } from '@react-google-maps/api';
-import { useGoogleMaps } from '../context/GoogleMapsProvider';
+import { useEffect, useState } from 'react';
+import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { useTourStore } from '../store/useTourStore';
 
-const MAP_OPTIONS: google.maps.MapOptions = {
-  disableDefaultUI: true,
-  zoomControl: true,
-  mapTypeId: 'satellite',
-  tilt: 45,
-  styles: [
-    { elementType: 'labels', stylers: [{ visibility: 'simplified' }] },
-    { featureType: 'administrative', stylers: [{ visibility: 'off' }] },
-  ],
-};
+// Fix Leaflet's broken default icon paths under Vite
+delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
+
+function RecenterMap({ lat, lng }: { lat: number; lng: number }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView([lat, lng], 15);
+  }, [lat, lng, map]);
+  return null;
+}
 
 export default function MapView() {
   const { location } = useTourStore();
-  const [mode, setMode] = useState<'map' | 'street'>('street');
-
-  const { isLoaded, loadError, apiKeyMissing } = useGoogleMaps();
+  const [mode, setMode] = useState<'street' | 'satellite'>('street');
 
   if (!location) return null;
 
-  if (apiKeyMissing || loadError) {
-    const msg = apiKeyMissing
-      ? 'Missing Maps browser key in repo-root .env — see /maps-demo.html.'
-      : (loadError?.message ?? 'Could not load Google Maps.');
-    return (
-      <div className="h-full min-h-0 flex items-center justify-center px-6">
-        <p className="text-sm font-mono text-amber-400/90 text-center" role="alert">
-          {msg}
-        </p>
-      </div>
-    );
-  }
-
-  if (!isLoaded) {
-    return (
-      <div className="h-full min-h-0 flex items-center justify-center">
-        <div className="text-white/30 text-sm font-mono">Loading maps…</div>
-      </div>
-    );
-  }
-
-  const center = { lat: location.lat, lng: location.lng };
+  const center: [number, number] = [location.lat, location.lng];
 
   return (
-    <div className="h-full min-h-0 flex flex-col">
+    <div className="h-full flex flex-col">
       {/* Mode toggle */}
       <div className="flex-shrink-0 px-5 py-3 flex gap-2">
-        {(['street', 'map'] as const).map((m) => (
+        {(['street', 'satellite'] as const).map((m) => (
           <button
             key={m}
             onClick={() => setMode(m)}
@@ -61,7 +44,7 @@ export default function MapView() {
               }
             `}
           >
-            {m === 'street' ? '🚶 Street View' : '🛰️ Satellite'}
+            {m === 'street' ? '🗺️ Map' : '🛰️ Satellite'}
           </button>
         ))}
         <span className="ml-auto text-[10px] text-white/20 font-mono self-center">
@@ -69,32 +52,30 @@ export default function MapView() {
         </span>
       </div>
 
-      {/* Map area — min-h-0 so nested flex gives the map a real height */}
-      <div className="flex-1 min-h-0 relative">
-        <GoogleMap
-          mapContainerStyle={{ width: '100%', height: '100%' }}
+      {/* Map */}
+      <div className="flex-1 relative">
+        <MapContainer
           center={center}
           zoom={15}
-          options={{
-            ...MAP_OPTIONS,
-            mapTypeId: mode === 'map' ? 'satellite' : 'roadmap',
-          }}
+          style={{ width: '100%', height: '100%' }}
+          zoomControl={false}
         >
-          {mode === 'street' && (
-            <StreetViewPanorama
-              options={{
-                position: center,
-                visible: true,
-                addressControl: false,
-                fullscreenControl: false,
-                motionTracking: false,
-                motionTrackingControl: false,
-                panControl: true,
-                zoomControl: true,
-              }}
+          <RecenterMap lat={location.lat} lng={location.lng} />
+
+          {mode === 'street' ? (
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            />
+          ) : (
+            <TileLayer
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              attribution="&copy; Esri, Maxar, Earthstar Geographics"
             />
           )}
-        </GoogleMap>
+
+          <Marker position={center} />
+        </MapContainer>
       </div>
     </div>
   );

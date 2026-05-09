@@ -29,10 +29,7 @@ function Skeleton({ lines = 3 }: { lines?: number }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <motion.div variants={stagger.item} className="mb-7">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-1 h-4 rounded-full" style={{ background: 'var(--amber)' }} />
-        <h3 className="text-[11px] uppercase tracking-[0.2em] font-mono text-white/40">{title}</h3>
-      </div>
+      <h3 className="text-[11px] uppercase tracking-widest text-white/30 font-mono mb-2">{title}</h3>
       {children}
     </motion.div>
   );
@@ -78,8 +75,8 @@ export default function TourPanel() {
           {/* Welcome */}
           <motion.div variants={stagger.item} className="mb-7">
             <blockquote
-              className="font-display text-lg leading-relaxed italic border-l-2 pl-4"
-              style={{ borderColor: 'var(--amber)', color: 'rgba(221,238,255,0.9)' }}
+              className="text-lg leading-relaxed text-white/80 border-l-2 pl-4"
+              style={{ borderColor: 'var(--amber)' }}
             >
               {tourContent.welcome}
             </blockquote>
@@ -98,11 +95,11 @@ export default function TourPanel() {
               {tourContent.curiosities.map((fact, i) => (
                 <li
                   key={i}
-                  className="flex gap-3 p-3 rounded-lg text-sm font-body"
+                  className="flex gap-3 p-3 rounded-lg text-sm"
                   style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}
                 >
-                  <span className="flex-shrink-0 text-base">💡</span>
-                  <span style={{ color: 'var(--text-secondary)' }}>{fact}</span>
+                  <span className="flex-shrink-0 text-base">·</span>
+                  <span className="text-white/70">{fact}</span>
                 </li>
               ))}
             </ul>
@@ -116,10 +113,10 @@ export default function TourPanel() {
                   <div
                     key={i}
                     className="p-3 rounded-lg"
-                    style={{ background: 'rgba(0,198,255,0.04)', border: '1px solid rgba(0,198,255,0.1)' }}
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}
                   >
-                    <p className="text-sm font-semibold text-white/80 mb-0.5">{poi.name}</p>
-                    <p className="text-xs font-body" style={{ color: 'var(--text-secondary)' }}>
+                    <p className="text-sm font-medium text-white/80 mb-0.5">{poi.name}</p>
+                    <p className="text-xs text-white/50">
                       {poi.description}
                     </p>
                   </div>
@@ -131,19 +128,19 @@ export default function TourPanel() {
           {/* Local tips */}
           {tourContent.localTips && (
             <Section title="Local Tips">
-              <div
-                className="p-3 rounded-lg text-sm font-body"
-                style={{ background: 'rgba(245,166,35,0.05)', border: '1px solid rgba(245,166,35,0.15)', color: 'var(--text-secondary)' }}
-              >
-                🗺️ {tourContent.localTips}
-              </div>
+<div
+                  className="p-3 rounded-lg text-sm"
+                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+                >
+                  {tourContent.localTips}
+                </div>
             </Section>
           )}
 
           {/* Closing */}
           {tourContent.closing && (
             <motion.div variants={stagger.item} className="mb-6">
-              <p className="text-sm italic text-white/30 font-display text-center">
+              <p className="text-sm text-white/30 text-center">
                 {tourContent.closing}
               </p>
             </motion.div>
@@ -153,11 +150,11 @@ export default function TourPanel() {
           {tourContent.sources.length > 0 && (
             <motion.div variants={stagger.item} className="flex gap-2 flex-wrap pb-4">
               {tourContent.sources.map((src) => (
-                <span
-                  key={src}
-                  className="text-[10px] font-mono px-2 py-1 rounded"
-                  style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.3)' }}
-                >
+<span
+                    key={src}
+                    className="text-[10px] font-mono px-2 py-1 rounded"
+                    style={{ background: 'rgba(255,255,255,0.04)', color: 'rgba(255,255,255,0.25)' }}
+                  >
                   {src}
                 </span>
               ))}
