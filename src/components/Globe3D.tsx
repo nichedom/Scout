@@ -1,6 +1,6 @@
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Stars, useTexture, OrbitControls } from '@react-three/drei';
-import { Suspense, useRef } from 'react';
+import { Suspense, useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import type { LocationData } from '../types';
 
@@ -20,28 +20,31 @@ function latLngToVec3(lat: number, lng: number, r: number): THREE.Vector3 {
 interface EarthProps {
   targetLat?: number;
   targetLng?: number;
+  isSpinning: boolean;
 }
 
-function Earth({ targetLat, targetLng }: EarthProps) {
+function Earth({ targetLat, targetLng, isSpinning }: EarthProps) {
   const earthRef = useRef<THREE.Mesh>(null!);
   const cloudsRef = useRef<THREE.Mesh>(null!);
+  const spinRef = useRef(0);
 
   const [colorMap, cloudsMap] = useTexture([EARTH_TEXTURE, CLOUDS_TEXTURE]);
 
   useFrame((_, delta) => {
-    if (earthRef.current) earthRef.current.rotation.y += delta * 0.05;
-    if (cloudsRef.current) cloudsRef.current.rotation.y += delta * 0.065;
+    if (isSpinning) {
+      spinRef.current += delta * 0.05;
+      if (earthRef.current) earthRef.current.rotation.y = spinRef.current;
+      if (cloudsRef.current) cloudsRef.current.rotation.y = spinRef.current * 1.3;
+    }
   });
 
   return (
     <>
-      {/* Earth sphere */}
       <mesh ref={earthRef}>
         <sphereGeometry args={[2, 64, 64]} />
         <meshPhongMaterial map={colorMap} shininess={8} specular={new THREE.Color(0x224466)} />
       </mesh>
 
-      {/* Cloud layer */}
       <mesh ref={cloudsRef}>
         <sphereGeometry args={[2.04, 64, 64]} />
         <meshPhongMaterial
@@ -53,7 +56,6 @@ function Earth({ targetLat, targetLng }: EarthProps) {
         />
       </mesh>
 
-      {/* Atmosphere glow (inner) */}
       <mesh>
         <sphereGeometry args={[2.18, 32, 32]} />
         <meshBasicMaterial
@@ -66,7 +68,6 @@ function Earth({ targetLat, targetLng }: EarthProps) {
         />
       </mesh>
 
-      {/* Atmosphere glow (outer) */}
       <mesh>
         <sphereGeometry args={[2.35, 32, 32]} />
         <meshBasicMaterial
@@ -79,7 +80,6 @@ function Earth({ targetLat, targetLng }: EarthProps) {
         />
       </mesh>
 
-      {/* Location pin */}
       {targetLat !== undefined && targetLng !== undefined && (
         <LocationPin lat={targetLat} lng={targetLng} />
       )}
@@ -89,33 +89,7 @@ function Earth({ targetLat, targetLng }: EarthProps) {
 
 function LocationPin({ lat, lng }: { lat: number; lng: number }) {
   const corePos = latLngToVec3(lat, lng, 2.06);
-  const glowRef = useRef<THREE.Mesh>(null!);
-  const ring1Ref = useRef<THREE.Mesh>(null!);
-  const ring2Ref = useRef<THREE.Mesh>(null!);
 
-  useFrame(({ clock }) => {
-    const t = clock.getElapsedTime();
-
-    if (glowRef.current) {
-      const pulse = Math.sin(t * 2.5) * 0.5 + 0.5;
-      glowRef.current.scale.setScalar(1 + pulse * 0.6);
-      (glowRef.current.material as THREE.MeshBasicMaterial).opacity = 0.25 + pulse * 0.25;
-    }
-
-    if (ring1Ref.current) {
-      const phase1 = (t % 2) / 2;
-      ring1Ref.current.scale.setScalar(1 + phase1 * 3);
-      (ring1Ref.current.material as THREE.MeshBasicMaterial).opacity = (1 - phase1) * 0.6;
-    }
-
-    if (ring2Ref.current) {
-      const phase2 = ((t + 1) % 2) / 2;
-      ring2Ref.current.scale.setScalar(1 + phase2 * 3);
-      (ring2Ref.current.material as THREE.MeshBasicMaterial).opacity = (1 - phase2) * 0.6;
-    }
-  });
-
-  // Orient rings to face outward from sphere center
   const normal = corePos.clone().normalize();
   const quaternion = new THREE.Quaternion().setFromUnitVectors(
     new THREE.Vector3(0, 0, 1),
@@ -124,41 +98,14 @@ function LocationPin({ lat, lng }: { lat: number; lng: number }) {
 
   return (
     <group>
-      {/* Core amber dot */}
       <mesh position={corePos}>
-        <sphereGeometry args={[0.038, 16, 16]} />
-        <meshBasicMaterial color="#f5a623" />
+        <sphereGeometry args={[0.04, 16, 16]} />
+        <meshBasicMaterial color="#ffffff" />
       </mesh>
-
-      {/* Glow halo */}
-      <mesh ref={glowRef} position={corePos}>
-        <sphereGeometry args={[0.075, 16, 16]} />
-        <meshBasicMaterial
-          color="#f5a623"
-          transparent
-          opacity={0.35}
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-        />
-      </mesh>
-
-      {/* Pulse ring 1 */}
-      <mesh ref={ring1Ref} position={corePos} quaternion={quaternion}>
+      <mesh position={corePos} quaternion={quaternion}>
         <ringGeometry args={[0.06, 0.08, 32]} />
         <meshBasicMaterial
-          color="#f5a623"
-          transparent
-          opacity={0.5}
-          side={THREE.DoubleSide}
-          depthWrite={false}
-        />
-      </mesh>
-
-      {/* Pulse ring 2 (offset by 1s) */}
-      <mesh ref={ring2Ref} position={corePos} quaternion={quaternion}>
-        <ringGeometry args={[0.06, 0.08, 32]} />
-        <meshBasicMaterial
-          color="#00c6ff"
+          color="#ffffff"
           transparent
           opacity={0.5}
           side={THREE.DoubleSide}
@@ -169,11 +116,41 @@ function LocationPin({ lat, lng }: { lat: number; lng: number }) {
   );
 }
 
+function CameraController({ targetLat, targetLng, active }: { targetLat?: number; targetLng?: number; active: boolean }) {
+  const { camera } = useThree();
+  const targetPosRef = useRef<THREE.Vector3 | null>(null);
+  const startRef = useRef<THREE.Vector3 | null>(null);
+  const progressRef = useRef(1);
+
+  useEffect(() => {
+    if (active && targetLat !== undefined && targetLng !== undefined) {
+      const targetOnSphere = latLngToVec3(targetLat, targetLng, 6.5);
+      targetPosRef.current = targetOnSphere;
+      startRef.current = camera.position.clone();
+      progressRef.current = 0;
+    }
+  }, [active, targetLat, targetLng]);
+
+  useFrame((_, delta) => {
+    if (progressRef.current < 1 && targetPosRef.current && startRef.current) {
+      progressRef.current = Math.min(1, progressRef.current + delta * 1.2);
+      const t = 1 - Math.pow(1 - progressRef.current, 3);
+      const start = startRef.current.clone().normalize();
+      const end = targetPosRef.current.clone().normalize();
+      const interpolated = new THREE.Vector3().lerpVectors(start, end, t).normalize().multiplyScalar(6.5);
+      camera.position.copy(interpolated);
+      camera.lookAt(0, 0, 0);
+    }
+  });
+
+  return null;
+}
+
 function FallbackSphere() {
   return (
     <mesh>
       <sphereGeometry args={[2, 32, 32]} />
-      <meshBasicMaterial color="#0e2044" wireframe />
+      <meshBasicMaterial color="#1a1a1a" wireframe />
     </mesh>
   );
 }
@@ -183,31 +160,38 @@ interface Props {
 }
 
 export default function Globe3D({ selectedLocation }: Props) {
+  const hasLocation = selectedLocation !== null;
+
   return (
     <Canvas
       camera={{ position: [0, 0, 6.5], fov: 42 }}
       gl={{ antialias: true, alpha: false }}
       style={{ background: 'transparent' }}
     >
-      <color attach="background" args={['#04080f']} />
+      <color attach="background" args={['#0a0a0a']} />
 
-      {/* Lighting */}
-      <ambientLight intensity={0.25} />
+      <ambientLight intensity={0.3} />
       <directionalLight position={[5, 3, 5]} intensity={1.4} color="#ffffff" />
-      <directionalLight position={[-5, -2, -3]} intensity={0.15} color="#4466ff" />
+      <directionalLight position={[-5, -2, -3]} intensity={0.1} color="#4466ff" />
 
-      {/* Stars */}
-      <Stars radius={120} depth={80} count={7000} factor={4.5} saturation={0} fade speed={0.6} />
+      <Stars radius={120} depth={80} count={4000} factor={4} saturation={0} fade speed={0.3} />
 
-      {/* Earth */}
       <Suspense fallback={<FallbackSphere />}>
         <Earth
           targetLat={selectedLocation?.lat}
           targetLng={selectedLocation?.lng}
+          isSpinning={!hasLocation}
         />
       </Suspense>
 
-      {/* Controls — drag to rotate, no zoom/pan */}
+      {hasLocation && (
+        <CameraController
+          targetLat={selectedLocation!.lat}
+          targetLng={selectedLocation!.lng}
+          active={hasLocation}
+        />
+      )}
+
       <OrbitControls
         enableZoom={false}
         enablePan={false}

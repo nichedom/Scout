@@ -5,9 +5,9 @@ import MapView from './MapView';
 import PipelinePanel from './PipelinePanel';
 
 const TABS = [
-  { id: 'tour' as const, label: 'Tour', icon: '🗺️' },
-  { id: 'map' as const, label: 'Street View', icon: '📷' },
-  { id: 'pipeline' as const, label: 'Pipeline', icon: '⚡' },
+  { id: 'tour' as const, label: 'Tour' },
+  { id: 'map' as const, label: 'Street View' },
+  { id: 'pipeline' as const, label: 'Pipeline' },
 ];
 
 interface Props {
@@ -23,7 +23,7 @@ export default function ContentPanel({ onBack }: Props) {
     <div
       className="h-full min-h-0 flex flex-col"
       style={{
-        background: 'linear-gradient(180deg, #080d14 0%, #0e1824 100%)',
+        background: 'var(--bg-surface)',
         borderLeft: '1px solid var(--border)',
       }}
     >
@@ -34,50 +34,40 @@ export default function ContentPanel({ onBack }: Props) {
       >
         <div className="flex items-start justify-between mb-4">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.25em] text-white/30 font-mono mb-1">
+            <p className="text-[10px] uppercase tracking-widest text-white/25 font-mono mb-1">
               Now exploring
             </p>
-            <h2 className="font-display text-2xl font-bold text-white leading-tight">
+            <h2 className="text-xl font-medium text-white leading-tight">
               {location.name}
             </h2>
-            <p className="text-xs text-white/40 mt-1 font-body">{location.address}</p>
+            <p className="text-xs text-white/40 mt-1">{location.address}</p>
           </div>
           <button
             onClick={onBack}
-            className="text-white/30 hover:text-white/70 transition-colors mt-1 p-1"
+            className="text-white/30 hover:text-white/60 transition-colors p-1"
             title="Back to globe"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1">
+        <div className="flex gap-4">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`
-                relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono
-                transition-all duration-200
+                text-xs font-mono tracking-wide pb-1 border-b transition-colors duration-200
                 ${activeTab === tab.id
-                  ? 'text-white'
-                  : 'text-white/35 hover:text-white/60'
+                  ? 'text-white border-white/40'
+                  : 'text-white/25 border-transparent hover:text-white/50'
                 }
               `}
             >
-              {activeTab === tab.id && (
-                <motion.div
-                  layoutId="tab-bg"
-                  className="absolute inset-0 rounded-lg"
-                  style={{ background: 'rgba(245,166,35,0.1)', border: '1px solid rgba(245,166,35,0.3)' }}
-                  transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-                />
-              )}
-              <span className="relative z-10">{tab.icon}</span>
-              <span className="relative z-10">{tab.label}</span>
+              {tab.label}
             </button>
           ))}
         </div>
