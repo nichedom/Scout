@@ -75,6 +75,9 @@ export default function App() {
     ? `${location.lat.toFixed(5)},${location.lng.toFixed(5)},${location.placeId ?? ''}`
     : '';
 
+  const showGlobe =
+    phase === 'landing' || (phase === 'exploring' && !hideGlobe);
+
   return (
     <div className="relative w-full h-full overflow-hidden" style={{ background: 'var(--bg-void)' }}>
 
@@ -86,6 +89,7 @@ export default function App() {
           <FullscreenStreetView
             key={mapPlaceKey}
             location={location}
+            globeHidden={hideGlobe}
             onPanoramaOk={handlePanoramaOk}
             onPanoramaUnavailable={handlePanoramaUnavailable}
             onMapsInitError={handleMapsInitError}
@@ -93,22 +97,24 @@ export default function App() {
         </div>
       )}
 
-      <motion.div
-        className={`absolute inset-0 ${phase === 'exploring' && location ? 'z-[2]' : 'z-[1]'}`}
-        initial={false}
-        animate={{
-          opacity: hideGlobe ? 0 : 1,
-          scale: hideGlobe ? 1.06 : 1,
-        }}
-        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-        style={{ pointerEvents: hideGlobe ? 'none' : 'auto' }}
-      >
-        <Globe3D
-          selectedLocation={phase === 'exploring' ? location : null}
-          onIntroAnimationComplete={phase === 'exploring' ? handleGlobeIntroDone : undefined}
-          pointerCaptureDisabled={hideGlobe}
-        />
-      </motion.div>
+      {showGlobe && (
+        <motion.div
+          className={`absolute inset-0 ${phase === 'exploring' && location ? 'z-[2]' : 'z-[1]'}`}
+          initial={false}
+          animate={{
+            opacity: hideGlobe ? 0 : 1,
+            scale: hideGlobe ? 1.06 : 1,
+          }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          style={{ pointerEvents: hideGlobe ? 'none' : 'auto' }}
+        >
+          <Globe3D
+            selectedLocation={phase === 'exploring' ? location : null}
+            onIntroAnimationComplete={phase === 'exploring' ? handleGlobeIntroDone : undefined}
+            pointerCaptureDisabled={hideGlobe}
+          />
+        </motion.div>
+      )}
 
       <motion.div
         className="absolute top-6 left-8 z-20 flex items-center gap-3 pointer-events-none"

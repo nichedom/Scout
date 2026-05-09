@@ -4,13 +4,20 @@ import type { LocationData } from '../types';
 
 interface Props {
   location: LocationData;
+  /** True once the 3D globe is removed — panorama must resize or tiles often stay black. */
+  globeHidden: boolean;
   onPanoramaOk: () => void;
   onPanoramaUnavailable: () => void;
   onMapsInitError?: () => void;
 }
 
+function triggerResize(pano: google.maps.StreetViewPanorama) {
+  google.maps.event.trigger(pano, 'resize');
+}
+
 export default function FullscreenStreetView({
   location,
+  globeHidden,
   onPanoramaOk,
   onPanoramaUnavailable,
   onMapsInitError,
@@ -38,6 +45,17 @@ export default function FullscreenStreetView({
   }, [location.lat, location.lng, onPanoramaUnavailable]);
 
   useEffect(() => {
+    if (!globeHidden) return;
+    const burstResize = () => {
+      const p = panoRef.current;
+      if (p) triggerResize(p);
+    };
+    burstResize();
+    const ids = [16, 80, 200, 450].map((ms) => window.setTimeout(burstResize, ms));
+    return () => ids.forEach((id) => window.clearTimeout(id));
+  }, [globeHidden]);
+
+  useEffect(() => {
     if (!isLoaded || apiKeyMissing || loadError || !containerRef.current) {
       return;
     }
@@ -63,8 +81,9 @@ export default function FullscreenStreetView({
     svc.getPanorama(
       {
         location: center,
-        radius: 80,
+        radius: 150,
         source: google.maps.StreetViewSource.DEFAULT,
+        preference: google.maps.StreetViewPreference.NEAREST,
       },
       (data, status) => {
         if (cancelled) return;
@@ -79,15 +98,21 @@ export default function FullscreenStreetView({
 
         clearPano();
 
+        const loc = data.location;
+        const latLng = loc.latLng ?? center;
+
         const pano = new google.maps.StreetViewPanorama(el, {
-          pano: data.location.pano,
+          pano: loc.pano,
+          position: latLng,
           visible: true,
+          clickToGo: true,
           addressControl: false,
           fullscreenControl: false,
           motionTracking: false,
           motionTrackingControl: false,
           panControl: true,
           zoomControl: true,
+          linksControl: true,
         });
         panoRef.current = pano;
 
@@ -96,6 +121,10 @@ export default function FullscreenStreetView({
           const st = pano.getStatus();
           if (st === google.maps.StreetViewStatus.OK) {
             settledRef.current = true;
+            requestAnimationFrame(() => {
+              triggerResize(pano);
+              requestAnimationFrame(() => triggerResize(pano));
+            });
             onPanoramaOk();
           } else if (st === google.maps.StreetViewStatus.ZERO_RESULTS) {
             settledRef.current = true;
@@ -143,5 +172,15 @@ export default function FullscreenStreetView({
     );
   }
 
-  return <div ref={containerRef} className="absolute inset-0" />;
+  return (
+    <div
+      ref={containerRef}
+      className="absolute inset-0 w-full h-full min-h-0"
+      style={{
+        isolation: 'isolate',
+        background: '#000',
+        transform: 'translateZ(0)',
+      }}
+    />
+  );
 }

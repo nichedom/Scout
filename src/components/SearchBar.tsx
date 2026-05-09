@@ -2,15 +2,57 @@ import { useEffect, useRef, useState } from 'react';
 import { useGoogleMaps } from '../context/GoogleMapsProvider';
 import type { LocationData } from '../types';
 
-const FETCH_PLACE_FIELDS = ['id', 'location', 'displayName', 'formattedAddress', 'types'] as const;
+const FETCH_PLACE_FIELDS = [
+  'id',
+  'location',
+  'viewport',
+  'displayName',
+  'formattedAddress',
+  'types',
+] as const;
 
-function latLngToCoords(loc: google.maps.LatLng | google.maps.LatLngLiteral): { lat: number; lng: number } {
-  const asLit = loc as google.maps.LatLngLiteral;
-  if (typeof asLit.lat === 'number' && typeof asLit.lng === 'number') {
-    return { lat: asLit.lat, lng: asLit.lng };
+/** gmp-select often puts payloads on `event.detail`; older handlers used top-level props. */
+function placeFromAutocompleteEvent(event: Event): google.maps.places.Place | null {
+  const e = event as CustomEvent<{
+    placePrediction?: google.maps.places.PlacePrediction;
+    place?: google.maps.places.Place;
+  }>;
+  const d = e.detail && typeof e.detail === 'object' ? e.detail : undefined;
+  const top = e as unknown as { place?: google.maps.places.Place; placePrediction?: google.maps.places.PlacePrediction };
+  const place = top.place ?? d?.place;
+  const pred = top.placePrediction ?? d?.placePrediction;
+  if (place) return place;
+  if (pred) return pred.toPlace();
+  return null;
+}
+
+function extractCoords(
+  loc: google.maps.LatLng | google.maps.LatLngLiteral | null | undefined
+): { lat: number; lng: number } | null {
+  if (loc == null) return null;
+  if (typeof (loc as google.maps.LatLng).lat === 'function') {
+    const ll = loc as google.maps.LatLng;
+    return { lat: ll.lat(), lng: ll.lng() };
   }
-  const ll = loc as google.maps.LatLng;
-  return { lat: ll.lat(), lng: ll.lng() };
+  const lit = loc as google.maps.LatLngLiteral & { lat?: unknown; lng?: unknown };
+  const lat = typeof lit.lat === 'number' ? lit.lat : Number(lit.lat);
+  const lng = typeof lit.lng === 'number' ? lit.lng : Number(lit.lng);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return { lat, lng };
+  }
+  return null;
+}
+
+function coordsFromPlace(place: google.maps.places.Place): { lat: number; lng: number } | null {
+  const fromLoc = extractCoords(place.location ?? undefined);
+  if (fromLoc && Math.abs(fromLoc.lat) <= 90 && Math.abs(fromLoc.lng) <= 180) {
+    return fromLoc;
+  }
+  const vp = place.viewport;
+  if (vp) {
+    return extractCoords(vp.getCenter());
+  }
+  return null;
 }
 
 interface Props {
@@ -67,18 +109,13 @@ export default function SearchBar({ onSelect, compact = false }: Props) {
         pac.style.zIndex = '50';
 
         const onSelectPlace = async (event: Event) => {
-          const ev = event as unknown as {
-            place?: google.maps.places.Place;
-            placePrediction?: google.maps.places.PlacePrediction;
-          };
-
-          let place: google.maps.places.Place | undefined;
-          if (ev.place) {
-            place = ev.place;
-          } else if (ev.placePrediction) {
-            place = ev.placePrediction.toPlace();
+          const place = placeFromAutocompleteEvent(event);
+          if (!place) {
+            if (import.meta.env.DEV) {
+              console.warn('[SearchBar] gmp-select: no place or placePrediction on event', event);
+            }
+            return;
           }
-          if (!place) return;
 
           try {
             await place.fetchFields({ fields: [...FETCH_PLACE_FIELDS] });
@@ -87,15 +124,22 @@ export default function SearchBar({ onSelect, compact = false }: Props) {
             return;
           }
 
-          const loc = place.location;
-          if (!loc) return;
+          const coords = coordsFromPlace(place);
+          if (!coords) {
+            if (import.meta.env.DEV) {
+              console.warn('[SearchBar] No coordinates after fetchFields', {
+                hasLocation: place.location != null,
+                hasViewport: place.viewport != null,
+              });
+            }
+            return;
+          }
 
-          const { lat, lng } = latLngToCoords(loc);
           onSelectRef.current({
             name: place.displayName ?? '',
             address: place.formattedAddress ?? '',
-            lat,
-            lng,
+            lat: coords.lat,
+            lng: coords.lng,
             placeId: place.id,
             types: place.types,
           });
