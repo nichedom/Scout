@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import tourRouter from './routes/tour';
+import narrationRouter from './routes/narration';
 import tripRouter from './routes/trip';
 
 const app = express();
@@ -21,12 +22,14 @@ const limiter = rateLimit({
   message: { error: 'Too many requests. Please wait before trying again.' },
 });
 app.use('/api/tour', limiter);
+app.use('/api/narration', limiter);
 
 // Routes
 app.get('/api/health', (_, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 app.use('/api/tour', tourRouter);
+app.use('/api/narration', narrationRouter);
 app.use('/api/trip', tripRouter);
 
 // 404 fallback

@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion';
-import { useCallback, type ReactNode } from 'react';
+import { useCallback, useRef, type ReactNode } from 'react';
 import { useGoogleMaps } from '../context/GoogleMapsProvider';
 import { useTourStore } from '../store/useTourStore';
 import type { LocationData, PointOfInterest } from '../types';
+import AudioPlayer, { type AudioPlayerHandle } from './AudioPlayer';
 
 const stagger = {
   container: { animate: { transition: { staggerChildren: 0.07 } } },
@@ -72,9 +73,11 @@ function geocodePoiForStreetView(
 export default function TourPanel() {
   const { tourContent, isLoading, location, setStreetViewFocus, setActiveTab } = useTourStore();
   const { isLoaded: mapsLoaded } = useGoogleMaps();
+  const audioPlayerRef = useRef<AudioPlayerHandle>(null);
 
   const onMustSeeClick = useCallback(
     (poi: PointOfInterest) => {
+      void audioPlayerRef.current?.speakStop(poi);
       if (!location || !mapsLoaded || typeof google === 'undefined' || !google.maps) return;
       geocodePoiForStreetView(poi, location, (lat, lng) => {
         setStreetViewFocus({ lat, lng });
@@ -104,12 +107,12 @@ export default function TourPanel() {
             </div>
           </div>
           <p className="text-center text-white/20 text-xs font-mono pt-4">
-            Gemini is researching {location?.name}…
+            Gemini is researching {location?.name}...
           </p>
         </div>
       ) : !tourContent ? (
         <div className="h-full flex items-center justify-center">
-          <p className="text-white/20 text-sm font-mono">Waiting for data…</p>
+          <p className="text-white/20 text-sm font-mono">Waiting for data...</p>
         </div>
       ) : (
         <motion.div
@@ -117,6 +120,8 @@ export default function TourPanel() {
           initial="initial"
           animate="animate"
         >
+          <AudioPlayer ref={audioPlayerRef} tourContent={tourContent} placeName={location?.name} autoPlay />
+
           {/* Welcome */}
           <motion.div variants={stagger.item} className="mb-5">
             <blockquote
@@ -143,7 +148,7 @@ export default function TourPanel() {
                   className="flex gap-2.5 px-3 py-2 rounded-lg text-sm"
                   style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}
                 >
-                  <span className="flex-shrink-0 text-amber-400/70">·</span>
+                  <span className="flex-shrink-0 text-amber-400/70">�</span>
                   <span className="text-white/70">{fact}</span>
                 </li>
               ))}
@@ -154,7 +159,7 @@ export default function TourPanel() {
           {tourContent.mustSee.length > 0 && (
             <Section title="Must See">
               <p className="text-[10px] text-white/25 font-mono mb-2">
-                Tap a place · Street View moves there
+                Tap a place � Street View moves there
               </p>
               <div className="space-y-2">
                 {tourContent.mustSee.map((poi, i) => (
@@ -165,7 +170,7 @@ export default function TourPanel() {
                     disabled={!mapsLoaded}
                     className="w-full text-left p-3 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer hover:border-amber-400/35 focus:outline-none focus-visible:ring-1 focus-visible:ring-amber-400/50"
                     style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}
-                    title={mapsLoaded ? 'Show in Street View' : 'Maps loading…'}
+                    title={mapsLoaded ? 'Show in Street View' : 'Maps loading...'}
                   >
                     <p className="text-sm font-medium text-white/85 mb-0.5">{poi.name}</p>
                     <p className="text-xs text-white/45">
@@ -201,7 +206,7 @@ export default function TourPanel() {
           {/* Sources */}
           {tourContent.sources.length > 0 && (
             <motion.div variants={stagger.item} className="text-[10px] font-mono pb-4 text-white/20">
-              Sources · {tourContent.sources.join(', ')}
+              Sources � {tourContent.sources.join(', ')}
             </motion.div>
           )}
 
