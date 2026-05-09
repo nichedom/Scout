@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-void: #04080f;
+  --bg-surface: #0e1824;
+  --bg-card: #162236;
+  --border: rgba(0, 198, 255, 0.12);
+  --border-hover: rgba(245, 166, 35, 0.4);
+  --amber: #f5a623;
+  --cyan: #00c6ff;
+  --text-primary: #ddeeff;
+  --text-secondary: #6b8fa8;
+  --glow-amber: 0 0 24px rgba(245, 166, 35, 0.35);
+  --glow-cyan: 0 0 24px rgba(0, 198, 255, 0.25);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-void);
+  color: var(--text-primary);
+  font-family: 'DM Sans', sans-serif;
+}
+
+/* Custom scrollbar for the panel */
+.panel-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 198, 255, 0.2) transparent;
+}
+.panel-scroll::-webkit-scrollbar { width: 4px; }
+.panel-scroll::-webkit-scrollbar-track { background: transparent; }
+.panel-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 198, 255, 0.2);
+  border-radius: 4px;
+}
+
+/* Glass card */
+.glass {
+  background: rgba(14, 24, 36, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+.glass-hover:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--glow-amber);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #f5a623 0%, #00c6ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Scan line overlay (subtle atmosphere) */
+.scanlines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Pipeline connector */
+.pipeline-line {
+  width: 2px;
+  background: linear-gradient(to bottom, var(--cyan), transparent);
+  transition: background 0.5s;
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow { animation: spin-slow 2s linear infinite; }
+
+@keyframes ping-slow {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.6); opacity: 0; }
+}
+.animate-ping-slow { animation: ping-slow 1.5s ease-in-out infinite; }
